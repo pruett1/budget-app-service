@@ -1,2 +1,4 @@
 # budget-app
-To run use ```flask --app main.src.service.budget_app run```
+To run use ```uvicorn main.src.service.budget_app:app --reload```
+
+Ensure that mongoDB is up an running as well
