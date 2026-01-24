@@ -1,17 +1,13 @@
-from flask import Flask
-from main.env.sandbox import Env
-import os
+from fastapi import FastAPI, APIRouter
+from main.db.account_db import AccountDB
+from pydantic import BaseModel
+from main.src.service.routers import account
 
-app = Flask(__name__)
-config = Env()
+app = FastAPI()
+accountDB = AccountDB("sandbox")
 
-@app.route('/ping')
-def ping():
-    return "pong", 200
+@app.get('/ping')
+async def ping():
+    return "pong"
 
-@app.route('/dangerdanger')
-def danger_danger():
-    return config.DANGER, 200
-
-if __name__ == "__main__":
-    app.run(debug=True)
+app.include_router(account.router, prefix="/account")
