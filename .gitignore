@@ -1,2 +1,6 @@
-plaid-recovery.txt
-api-keys.json
+**/env/
+.vscode/
+
+# Python
+**/__pycache__/
+**/*pyc
