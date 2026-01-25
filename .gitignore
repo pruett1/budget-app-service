@@ -1,6 +1,6 @@
 **/env/
 .vscode/
-main/src/helpers/encryption.py
+main/src/service/helpers/encryption.py
 
 # Python
 **/__pycache__/
