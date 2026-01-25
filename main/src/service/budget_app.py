@@ -1,14 +1,23 @@
 from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
+import logging
+
 from main.db.account_db import AccountDB
-from pydantic import BaseModel
 from main.src.service.routers import account
 from main.src.service.helpers.sessions import SessionManager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.sessionManager = SessionManager()
-    app.state.accountDB = AccountDB("sandbox")
+    logger = logging.getLogger("uvicorn.error")
+    logger.setLevel(logging.DEBUG)
+
+    logger.warning("Initializing application resources...")
+    logger.info("Setting up SessionManager and AccountDB...")
+    logger.debug("Debugging information: Application is starting up.")
+
+    app.state.sessionManager = SessionManager("sandbox", logger)
+    app.state.accountDB = AccountDB("sandbox", logger)
+    app.state.logger = logger
     yield
     app.state.accountDB.close()
 
