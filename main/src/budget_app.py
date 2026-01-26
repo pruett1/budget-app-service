@@ -5,7 +5,7 @@ import logging
 from main.db.account_db import AccountDB
 from main.src.routers import account
 from main.src.helpers.sessions import SessionManager
-from main.src.plaid import Plaid
+from main.src.helpers.plaid import Plaid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
