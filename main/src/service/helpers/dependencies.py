@@ -8,3 +8,6 @@ def get_account_db(request: Request):
 
 def get_logger(request: Request):
     return request.app.state.logger
+
+def get_plaid_client(request: Request):
+    return request.app.state.plaid
