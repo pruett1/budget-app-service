@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Response, status
+from urllib3 import request
 
-from main.src.service.helpers.dependencies import get_account_db, get_session_manager, get_logger
-from main.src.service.helpers.encryption import pwd_encrypt
-from main.src.service.helpers.request_bodies import createAccountRequest, loginRequest
+from main.src.helpers.dependencies import get_account_db, get_session_manager, get_logger
+from main.src.helpers.encryption import pwd_encrypt
+from main.src.helpers.request_bodies import createAccountRequest, loginRequest
 
 import uuid
 import re
@@ -46,5 +47,7 @@ async def get_account_details(request: Request, response: Response, session_mana
 
 
 @router.get('/logout')
-async def logout(session_token: str, session_manager = Depends(get_session_manager)):
-    session_manager.invalidate(session_token) 
+async def logout(request: Request, response: Response, session_manager = Depends(get_session_manager)):
+    session_token = request.headers.get('Authorization')[7:]  # Remove "Bearer " prefix
+    session_manager.invalidate(session_token)
+    response.status_code = status.HTTP_204_NO_CONTENT

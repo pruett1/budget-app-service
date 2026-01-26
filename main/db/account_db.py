@@ -14,6 +14,8 @@ class AccountDB:
 
     def find_by_field(self, field: str, val: str):
         entry = self.collection.find_one({field: val})
+        if not entry:
+            return None
         del entry['_id']
         del entry['password']
         return entry

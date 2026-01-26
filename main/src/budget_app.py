@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 import logging
 
 from main.db.account_db import AccountDB
-from main.src.service.routers import account
-from main.src.service.helpers.sessions import SessionManager
-from main.src.service.plaid import Plaid
+from main.src.routers import account
+from main.src.helpers.sessions import SessionManager
+from main.src.plaid import Plaid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
