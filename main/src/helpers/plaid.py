@@ -19,7 +19,7 @@ class Plaid:
         else:
             raise ValueError("Invalid env specified")
         
-        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=10.0)
+        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=10.0, headers={"Content-Type": "application/json"})
         self.logger.info("Plaid client initialized with base URL: %s", self.base_url)
         
     async def create_link_token(self, user_id: str) -> str:
@@ -36,11 +36,8 @@ class Plaid:
             "country_codes": ["US"],
             "language": "en"
         }
-        headers = {
-            "Content-Type": "application/json"
-        }
         try:
-            response = await self.client.post(path, json=payload, headers=headers)
+            response = await self.client.post(path, json=payload)
             response.raise_for_status()
             data = response.json()
             self.logger.info(f"Successfully created link token expiring at {data['expiration']}")
@@ -59,11 +56,8 @@ class Plaid:
             "secret": self.secret,
             "public_token": public_token
         }
-        headers = {
-            "Content-Type": "application/json"
-        }
         try:
-            response = await self.client.post(path, json=payload, headers=headers)
+            response = await self.client.post(path, json=payload)
             response.raise_for_status()
             data = response.json()
             self.logger.info("Successfully exchanged public token for access token and item id")
