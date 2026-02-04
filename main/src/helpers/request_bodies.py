@@ -8,3 +8,7 @@ class createAccountRequest(BaseModel):
 class loginRequest(BaseModel):
     username: str
     password: str
+
+class exchangePublicTokenRequest(BaseModel):
+    jwt_token: str
+    public_token: str
