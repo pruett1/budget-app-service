@@ -1,4 +1,4 @@
-from db.mongo import DB
+from src.db.mongo import DB
 from logging import Logger
 
 class AccountDB:

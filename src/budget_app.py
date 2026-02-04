@@ -2,8 +2,8 @@ from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 import logging
 
-from db.account_db import AccountDB
-from db.item_db import ItemDB
+from src.db.account_db import AccountDB
+from src.db.item_db import ItemDB
 from src.routers import account
 from src.helpers.sessions import SessionManager
 from src.helpers.plaid import Plaid
