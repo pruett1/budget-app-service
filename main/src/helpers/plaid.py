@@ -3,6 +3,8 @@ import json
 from main.env.envs import Env
 from logging import Logger
 
+from main.src.helpers.requests.payloads import create_link_token_payload, exchange_public_token_payload
+
 class Plaid:
     def __init__(self, env: str, logger: Logger):
         self.logger = logger
@@ -24,18 +26,7 @@ class Plaid:
         
     async def create_link_token(self, user_id: str) -> str:
         path = "/link/token/create"
-        payload = {
-            "client_id": self.client_id,
-            "secret": self.secret,
-            "client_name": "pruett1-budget-app",
-            "user": {
-                "client_user_id": user_id
-            },
-            "products": ["transactions"],
-            "additional_consented_products": ["investments", "liabilities"],
-            "country_codes": ["US"],
-            "language": "en"
-        }
+        payload = create_link_token_payload(self.client_id, self.secret, user_id)
         try:
             response = await self.client.post(path, json=payload)
             response.raise_for_status()
@@ -51,11 +42,7 @@ class Plaid:
 
     async def exchange_public_token(self, public_token: str):
         path = "/item/public_token/exchange"
-        payload = {
-            "client_id": self.client_id,
-            "secret": self.secret,
-            "public_token": public_token
-        }
+        payload = exchange_public_token_payload(self.client_id, self.secret, public_token)
         try:
             response = await self.client.post(path, json=payload)
             response.raise_for_status()
