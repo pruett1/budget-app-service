@@ -16,6 +16,10 @@ class ItemDB:
             raise
 
     def append_item(self, user_id: str, item_id: str, access_token: str) -> None:
+        if self.collection.find_one({"user_id": user_id, "items": {"$elemMatch": {"item_id": item_id}}}):
+            self.logger.warning("Item already exists for user_id")
+            raise ValueError("Item already exists")
+
         self.logger.info("Appending new item to user_id: %s", user_id)
         try:
             self.collection.update_one({"user_id": user_id}, 

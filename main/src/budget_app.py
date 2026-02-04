@@ -24,6 +24,8 @@ async def lifespan(app: FastAPI):
     app.state.logger = logger
     yield
     app.state.accountDB.close()
+    app.state.itemDB.close()
+    await app.state.plaid.close()
 
 app = FastAPI(lifespan=lifespan)
 

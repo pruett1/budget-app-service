@@ -19,7 +19,8 @@ class Plaid:
         else:
             raise ValueError("Invalid env specified")
         
-        self.client = httpx.Client(base_url=self.base_url, timeout=10.0)
+        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=10.0)
+        self.logger.info("Plaid client initialized with base URL: %s", self.base_url)
         
     async def create_link_token(self, user_id: str) -> str:
         path = "/link/token/create"
@@ -30,7 +31,8 @@ class Plaid:
             "user": {
                 "client_user_id": user_id
             },
-            "products": ["transactions", "recurring_transactions", "investments", "liabilities"],
+            "products": ["transactions"],
+            "additional_consented_products": ["investments", "liabilities"],
             "country_codes": ["US"],
             "language": "en"
         }
@@ -73,4 +75,7 @@ class Plaid:
             self.logger.error(f"Request error while exchanging public token: {str(e)}")
             raise
 
+
+    async def close(self):
+        await self.client.aclose()
     

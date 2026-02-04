@@ -36,14 +36,19 @@ async def create_account(request: createAccountRequest, response: Response,
     return {"message": "Account created successfully"}
 
 @router.post('/login')
-async def login(request: loginRequest, account_db = Depends(get_account_db), 
+async def login(request: loginRequest, response: Response, account_db = Depends(get_account_db), 
                 session_manager = Depends(get_session_manager), plaid = Depends(get_plaid_client)):
     account = account_db.validate_credentials(request.username, pwd_hash(request.password))
     if account:
-        link_token = await plaid.create_link_token(account['user_id'])
-        return {"jwt_token": session_manager.create(account['user_id']), "link_token": link_token}
+        try:
+            link_token = await plaid.create_link_token(account['user_id'])
+            return {"jwt_token": session_manager.create(account['user_id']), "link_token": link_token}
+        except Exception as e:
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return "Failed to create link token"
     else:
-        return "Invalid credentials", 401
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return "Invalid credentials"
     
 @router.post('/exchange_public_token')
 async def exchange_public_token(request: exchangePublicTokenRequest, response: Response,
@@ -59,8 +64,12 @@ async def exchange_public_token(request: exchangePublicTokenRequest, response: R
     
     try:
         access_token, item_id = await plaid.exchange_public_token(request.public_token)
-        item_db.append_item(user_id, encrypt(item_id), encrypt(access_token))
-        response.status_code = status.HTTP_204_NO_CONTENT
+        try:
+            item_db.append_item(user_id, encrypt(item_id), encrypt(access_token))
+            response.status_code = status.HTTP_204_NO_CONTENT
+        except ValueError:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return "Item already exists for user"
     except Exception as e:
         logger.error("Error exchanging public token: %s", str(e))
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
