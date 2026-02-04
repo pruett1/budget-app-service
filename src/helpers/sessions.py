@@ -1,6 +1,6 @@
 import json
 import time
-from main.env.envs import Env
+from env.envs import Env
 import base64
 import hmac
 import hashlib

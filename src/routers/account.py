@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 from urllib3 import request
 
-from main.src.helpers.dependencies import get_account_db, get_item_db, get_session_manager, get_logger, get_plaid_client
-from main.src.helpers.encryption import pwd_hash, encrypt, decrypt
-from main.src.helpers.requests.bodies import createAccountRequest, loginRequest, exchangePublicTokenRequest
+from src.helpers.dependencies import get_account_db, get_item_db, get_session_manager, get_logger, get_plaid_client
+from src.helpers.encryption import pwd_hash, encrypt, decrypt
+from src.helpers.requests.bodies import createAccountRequest, loginRequest, exchangePublicTokenRequest
 
 import uuid
 import re

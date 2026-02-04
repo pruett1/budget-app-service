@@ -2,11 +2,11 @@ from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 import logging
 
-from main.db.account_db import AccountDB
-from main.db.item_db import ItemDB
-from main.src.routers import account
-from main.src.helpers.sessions import SessionManager
-from main.src.helpers.plaid import Plaid
+from db.account_db import AccountDB
+from db.item_db import ItemDB
+from src.routers import account
+from src.helpers.sessions import SessionManager
+from src.helpers.plaid import Plaid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

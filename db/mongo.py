@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from main.env.envs import Env
+from env.envs import Env
 
 class DB:
     def __init__(self, env: str):

@@ -1,4 +1,4 @@
-from main.db.mongo import DB
+from db.mongo import DB
 from logging import Logger
 
 class ItemDB:

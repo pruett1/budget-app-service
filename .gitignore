@@ -1,6 +1,7 @@
 **/env/
 .vscode/
-main/src/helpers/encryption.py
+src/helpers/encryption.py
+.pytest_cache/
 
 # Python
 **/__pycache__/
