@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "budget-app-service"
+version = "0.1.0"
+description = "Backend for a custom budget app integrated with Plaid"
+authors = [{ name = "Spencer Pruett" }]
+readme = "README.md"
+
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]",
+    "pymongo~=4.16.0",
+    "httpx~=0.28.1",
+    "cryptography~=46.0.4"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=9.0.2",
+    "coverage~=7.13.3"
+]
