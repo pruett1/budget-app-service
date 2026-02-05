@@ -32,5 +32,7 @@ omit = [
     # omit mongo client wrapper
     "src/db/mongo.py",
     # omit __init__ files to reduce clutter in report
-    "*/__init__.py"
+    "*/__init__.py",
+    # omit dependency loader functions
+    "src/helpers/dependencies.py"
 ]
