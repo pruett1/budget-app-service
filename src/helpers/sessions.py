@@ -63,7 +63,7 @@ class SessionManager:
         self.logger.info("Valid session token")
         return payload['id']
     
-    def invalidate(self, session_id: str):
+    def invalidate(self, session_id: str) -> None:
         self.logger.debug("Invalidating specified session token")
         if session_id in self.sessions:
             self.sessions.remove(session_id)

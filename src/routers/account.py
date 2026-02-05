@@ -15,7 +15,6 @@ async def create_account(request: createAccountRequest, response: Response,
                          account_db = Depends(get_account_db), item_db = Depends(get_item_db),
                          logger = Depends(get_logger)):
     
-    logger.info("Attempting to create new account for user: %s", request.username)
     if account_db.find_by_field("user", request.username):
         response.status_code = status.HTTP_400_BAD_REQUEST
         logger.warning("Username already exists: %s", request.username)
@@ -33,12 +32,13 @@ async def create_account(request: createAccountRequest, response: Response,
     account_db.insert(account_data)
     item_db.insert(account_data['user_id'])
     logger.info("Successfully created account for user: %s", request.username)
-    return {"message": "Account created successfully"}
+    return "Account created successfully"
 
 @router.post('/login')
 async def login(request: loginRequest, response: Response, account_db = Depends(get_account_db), 
                 session_manager = Depends(get_session_manager), plaid = Depends(get_plaid_client)):
     account = account_db.validate_credentials(request.username, pwd_hash(request.password))
+
     if account:
         try:
             link_token = await plaid.create_link_token(account['user_id'])
@@ -74,18 +74,6 @@ async def exchange_public_token(request: exchangePublicTokenRequest, response: R
         logger.error("Error exchanging public token: %s", str(e))
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return "Failed to exchange public token"
-    
-    
-@router.get('/details')
-async def get_account_details(request: Request, response: Response, session_manager = Depends(get_session_manager), account_db = Depends(get_account_db)):
-    auth = request.headers.get('Authorization')[7:]  # Remove "Bearer " prefix
-    try:
-        user_id = session_manager.validate(auth)
-    except ValueError:
-        response.status_code = status.HTTP_401_UNAUTHORIZED
-        return "Invalid or expired session token"
-    account = account_db.find_by_field("user_id", user_id)
-    return account
 
 
 @router.get('/logout')
