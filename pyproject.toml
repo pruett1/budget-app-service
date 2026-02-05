@@ -22,3 +22,15 @@ dev = [
     "pytest~=9.0.2",
     "coverage~=7.13.3"
 ]
+
+[tool.coverage.run]
+omit = [
+    # omit the env folder
+    "/env/*",
+    # omit the request bodies
+    "/src/requests/*",
+    # omit mongo client wrapper
+    "src/db/mongo.py",
+    # omit __init__ files to reduce clutter in report
+    "*/__init__.py"
+]

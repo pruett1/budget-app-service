@@ -2,7 +2,10 @@
 .vscode/
 src/helpers/encryption.py
 .pytest_cache/
+.coverage
+htmlcov/
 
 # Python
 **/__pycache__/
 **/*pyc
+**/*.egg-info/
