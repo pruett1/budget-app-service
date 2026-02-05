@@ -9,7 +9,7 @@ from src.helpers.sessions import SessionManager
 from src.helpers.plaid import Plaid
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI): #pragma: no cover
     logger = logging.getLogger("uvicorn.error")
     logger.setLevel(logging.DEBUG)
 

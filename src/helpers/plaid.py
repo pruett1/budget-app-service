@@ -3,7 +3,7 @@ import json
 from env.envs import Env
 from logging import Logger
 
-from src.helpers.requests.payloads import create_link_token_payload, exchange_public_token_payload
+from src.requests.payloads import create_link_token_payload, exchange_public_token_payload
 
 class Plaid:
     def __init__(self, env: str, logger: Logger):
