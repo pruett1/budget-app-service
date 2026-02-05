@@ -11,22 +11,23 @@ class ItemDB:
         if not user_id or not isinstance(user_id, str):
             raise ValueError("Invalid user_id provided for insertion.")
 
-        self.logger.info("Inserting new account...")
+        self.logger.info("Inserting new item...")
         try:
             self.collection.insert_one({"user_id": user_id, "items": []})
         except Exception as e:
-            self.logger.error("Failed to insert new account: %s", e)
+            self.logger.error("Failed to insert new item: %s", e)
             raise
 
     def append_item(self, user_id: str, item_id: str, access_token: str) -> None:
         if not user_id or not item_id or not access_token or not isinstance(user_id, str) or not isinstance(item_id, str) or not isinstance(access_token, str):
             raise ValueError("Invalid user_id, item_id, or access_token provided for appending item.")
+        
+        if not self.collection.find_one({"user_id": user_id}):
+            raise ValueError("User_id not found")
 
         if self.collection.find_one({"user_id": user_id, "items": {"$elemMatch": {"item_id": item_id}}}):
-            self.logger.warning("Item already exists for user_id")
             raise ValueError("Item already exists")
 
-        self.logger.info("Appending new item to user_id: %s", user_id)
         try:
             self.collection.update_one({"user_id": user_id}, 
                                    {"$push": {"items": {"item_id": item_id, "access_token": access_token}}})
@@ -43,7 +44,7 @@ class ItemDB:
         if record:
             return record.get("items")
         else:
-            self.logger.error("No user found")
+            self.logger.warning("No user found")
             return []
         
     def remove_item(self, user_id: str, item_id: str) -> None:
