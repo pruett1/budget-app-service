@@ -2,8 +2,8 @@ from src.db.mongo import DB
 from logging import Logger
 
 class ItemDB:
-    def __init__(self, env: str, logger: Logger):
-        self.collection = DB(env).get_db().items
+    def __init__(self, env: str, logger: Logger, db_factory = DB):
+        self.collection = db_factory(env).get_db().items
         self.logger = logger
         self.logger.info("ItemDB initialized.")
 
