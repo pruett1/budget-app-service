@@ -8,6 +8,9 @@ class ItemDB:
         self.logger.info("ItemDB initialized.")
 
     def insert(self, user_id: str) -> None:
+        if not user_id or not isinstance(user_id, str):
+            raise ValueError("Invalid user_id provided for insertion.")
+
         self.logger.info("Inserting new account...")
         try:
             self.collection.insert_one({"user_id": user_id, "items": []})
@@ -16,6 +19,9 @@ class ItemDB:
             raise
 
     def append_item(self, user_id: str, item_id: str, access_token: str) -> None:
+        if not user_id or not item_id or not access_token or not isinstance(user_id, str) or not isinstance(item_id, str) or not isinstance(access_token, str):
+            raise ValueError("Invalid user_id, item_id, or access_token provided for appending item.")
+
         if self.collection.find_one({"user_id": user_id, "items": {"$elemMatch": {"item_id": item_id}}}):
             self.logger.warning("Item already exists for user_id")
             raise ValueError("Item already exists")
@@ -29,6 +35,9 @@ class ItemDB:
             raise
         
     def get_items(self, user_id: str) -> list:
+        if not user_id or not isinstance(user_id, str):
+            raise ValueError("Invalid user_id provided for retrieving items.")
+
         self.logger.info("Retrieving items for user_id: %s", user_id)
         record = self.collection.find_one({"user_id": user_id})
         if record:
@@ -38,6 +47,9 @@ class ItemDB:
             return []
         
     def remove_item(self, user_id: str, item_id: str) -> None:
+        if not user_id or not item_id or not isinstance(user_id, str) or not isinstance(item_id, str):
+            raise ValueError("Invalid user_id or item_id provided for removing item.")
+
         self.logger.info("Removing item_id: %s from user_id: %s", item_id, user_id)
         try:
             self.collection.update_one({"user_id": user_id}, {"$pull": {"items": {"item_id": item_id}}})
@@ -46,6 +58,9 @@ class ItemDB:
             raise
         
     def update_item_access_token(self, user_id: str, item_id: str, new_access_token: str) -> None:
+        if not user_id or not item_id or not new_access_token or not isinstance(user_id, str) or not isinstance(item_id, str) or not isinstance(new_access_token, str):
+            raise ValueError("Invalid user_id, item_id, or new_access_token provided for updating access token.")
+
         self.logger.info("Updating access token for item_id: %s of user_id: %s", item_id, user_id)
         try:
             self.collection.update_one(
