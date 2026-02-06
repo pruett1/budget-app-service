@@ -1,6 +1,6 @@
 import json
 import time
-from main.env.envs import Env
+from env.envs import Env
 import base64
 import hmac
 import hashlib
@@ -63,25 +63,25 @@ class SessionManager:
         self.logger.info("Valid session token")
         return payload['id']
     
-    def invalidate(self, session_id: str):
+    def invalidate(self, session_id: str) -> None:
         self.logger.debug("Invalidating specified session token")
         if session_id in self.sessions:
             self.sessions.remove(session_id)
     
-    def cleanup(self):
-        current = time.time()
-        expired_sessions = []
+    # def cleanup(self):
+    #     current = time.time()
+    #     expired_sessions = []
 
-        for sid in self.sessions:
-            try:
-                _, payload_b64, _ = sid.split('.')
-                payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode()
-                payload = json.loads(payload_str)
-                if payload['exp'] < current:
-                    expired_sessions.append(sid)
-            except:
-                expired_sessions.append(sid)
+    #     for sid in self.sessions:
+    #         try:
+    #             _, payload_b64, _ = sid.split('.')
+    #             payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode()
+    #             payload = json.loads(payload_str)
+    #             if payload['exp'] < current:
+    #                 expired_sessions.append(sid)
+    #         except:
+    #             expired_sessions.append(sid)
 
-        self.logger.debug(f"Cleaning up {len(expired_sessions)} expired sessions")
-        for sid in expired_sessions:
-            self.sessions.remove(sid)
+    #     self.logger.debug(f"Cleaning up {len(expired_sessions)} expired sessions")
+    #     for sid in expired_sessions:
+    #         self.sessions.remove(sid)

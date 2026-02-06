@@ -1,9 +1,9 @@
 import httpx
 import json
-from main.env.envs import Env
+from env.envs import Env
 from logging import Logger
 
-from main.src.helpers.requests.payloads import create_link_token_payload, exchange_public_token_payload
+from src.requests.payloads import create_link_token_payload, exchange_public_token_payload
 
 class Plaid:
     def __init__(self, env: str, logger: Logger):
@@ -40,7 +40,7 @@ class Plaid:
             self.logger.error(f"Request error while creating link token: {str(e)}")
             raise
 
-    async def exchange_public_token(self, public_token: str):
+    async def exchange_public_token(self, public_token: str) -> tuple[str, str]:
         path = "/item/public_token/exchange"
         payload = exchange_public_token_payload(self.client_id, self.secret, public_token)
         try:

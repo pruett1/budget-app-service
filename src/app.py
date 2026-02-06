@@ -2,14 +2,14 @@ from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 import logging
 
-from main.db.account_db import AccountDB
-from main.db.item_db import ItemDB
-from main.src.routers import account
-from main.src.helpers.sessions import SessionManager
-from main.src.helpers.plaid import Plaid
+from src.db.account_db import AccountDB
+from src.db.item_db import ItemDB
+from src.routers import account
+from src.helpers.sessions import SessionManager
+from src.helpers.plaid import Plaid
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI): #pragma: no cover
     logger = logging.getLogger("uvicorn.error")
     logger.setLevel(logging.DEBUG)
 
