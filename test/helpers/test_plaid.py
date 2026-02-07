@@ -1,4 +1,5 @@
 from src.helpers.plaid import Plaid
+from src.requests.payloads import create_link_token_payload, exchange_public_token_payload, item_payload
 import httpx
 
 from unittest.mock import MagicMock, patch, AsyncMock
@@ -57,7 +58,9 @@ async def test_create_link_token_positive():
     token = await plaid.create_link_token("test_user_id")
 
     # Verify
-    mock_client.post.assert_awaited_once()
+    path = "/link/token/create"
+    payload = create_link_token_payload(plaid.client_id, plaid.secret, "test_user_id")
+    mock_client.post.assert_awaited_once_with(path, json=payload)
     mock_response.raise_for_status.assert_called_once()
     mock_response.json.assert_called_once()
     mock_logger.info.assert_called_once_with("Successfully created link token expiring at test_expiration")
@@ -90,7 +93,7 @@ async def test_create_link_token_negative_request_error():
     # Setup mocks
     plaid, mock_client, mock_logger = plaid_with_mocks()
     
-    mock_client.post= AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
+    mock_client.post = AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
 
     # Action
     with pytest.raises(httpx.RequestError):
@@ -116,7 +119,9 @@ async def test_exhcange_public_token_positive():
     token, item_id = await plaid.exchange_public_token("test_public_token")
 
     # Verify
-    mock_client.post.assert_awaited_once()
+    path = "/item/public_token/exchange"
+    payload = exchange_public_token_payload(plaid.client_id, plaid.secret, "test_public_token")
+    mock_client.post.assert_awaited_once_with(path, json=payload)
     mock_response.raise_for_status.assert_called_once()
     mock_response.json.assert_called_once()
     mock_logger.info.assert_called_once_with("Successfully exchanged public token for access token and item id")
@@ -151,7 +156,7 @@ async def test_exchange_public_token_negative_request_error():
     # Setup mocks
     plaid, mock_client, mock_logger = plaid_with_mocks()
 
-    mock_client.post= AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
+    mock_client.post = AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
 
     # Action
     with pytest.raises(httpx.RequestError):
@@ -160,6 +165,209 @@ async def test_exchange_public_token_negative_request_error():
     # Verify
     mock_client.post.assert_awaited_once()
     mock_logger.error.assert_called_once_with("Request error while exchanging public token: RequestError")
+
+# POSITIVE test for get item
+@pytest.mark.asyncio
+async def test_get_item_positive():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"item_data": "some_item_data"}
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    data = await plaid.get_item("test_access_token")
+    
+    # Verify
+    path = "/item/get"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    mock_client.post.assert_awaited_once_with(path, json=payload)
+    mock_response.raise_for_status.assert_called_once()
+    mock_response.json.assert_called_once()
+
+    assert data == {"item_data": "some_item_data"}
+
+# NEGATIVE tests for get item
+@pytest.mark.asyncio
+async def test_get_item_negative_status_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.text = "error"
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError("HTTPStatusError", request=MagicMock(), response=mock_response)
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    with pytest.raises(httpx.HTTPStatusError):
+        await plaid.get_item("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_response.raise_for_status.assert_called_once()
+    mock_response.json.assert_not_called()
+    mock_logger.error.assert_called_once_with("HTTP error while getting item data: error")
+
+@pytest.mark.asyncio
+async def test_get_item_negative_request_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_client.post = AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
+
+    # Action
+    with pytest.raises(httpx.RequestError):
+        await plaid.get_item("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_logger.error.assert_called_once_with("Request error while getting item data: RequestError")
+
+# POSITIVE tests for remove item
+@pytest.mark.asyncio
+async def test_remove_item_positive_no_reason():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    await plaid.remove_item("test_access_token")
+
+    # Verify
+    path = "/item/remove"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    mock_client.post.assert_awaited_once_with(path, json=payload)
+    mock_response.raise_for_status.assert_called_once()
+    mock_logger.info.assert_called_once_with("Successfully removed item")
+
+@pytest.mark.asyncio
+async def test_remove_item_positive_reason():
+        # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    await plaid.remove_item("test_access_token", "test_reason_code", "test_reason_note")
+
+    # Verify
+    path = "/item/remove"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    payload["reason_code"] = "test_reason_code"
+    payload["reason_note"] = "test_reason_note"
+    mock_client.post.assert_awaited_once_with(path, json=payload)
+    mock_response.raise_for_status.assert_called_once()
+    mock_logger.info.assert_called_once_with("Successfully removed item")
+
+# NEGATIVE tests remove item
+@pytest.mark.asyncio
+async def test_remove_item_negative_status_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.text = "error"
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError("HTTPStatusError", request=MagicMock(), response=mock_response)
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    with pytest.raises(httpx.HTTPStatusError):
+        await plaid.remove_item("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_response.raise_for_status.assert_called_once()
+    mock_response.json.assert_not_called()
+    mock_logger.error.assert_called_once_with("HTTP error while removing item: error")
+
+@pytest.mark.asyncio
+async def test_remove_item_negative_request_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_client.post = AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
+
+    # Action
+    with pytest.raises(httpx.RequestError):
+        await plaid.remove_item("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_logger.error.assert_called_once_with("Request error while removing item: RequestError")
+
+# POSITIVE test invalidate access token
+@pytest.mark.asyncio
+async def test_invalidate_access_token_positive():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"new_access_token": "test_new_access_token"}
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    new_token = await plaid.invalidate_access_token("test_access_token")
+
+    # Verify
+    path = "/item/access_token/invalidate"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    mock_client.post.assert_awaited_once_with(path, json=payload)
+    mock_response.raise_for_status.assert_called_once()
+    mock_response.json.assert_called_once()
+    mock_logger.info.assert_called_once_with("Successfully rotated access token")
+
+    assert new_token == "test_new_access_token"
+
+# NEGATIVE tests invalidate access token
+@pytest.mark.asyncio
+async def test_invalidate_access_token_negative_status_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.text = "error"
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError("HTTPStatusError", request=MagicMock(), response=mock_response)
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    with pytest.raises(httpx.HTTPStatusError):
+        await plaid.invalidate_access_token("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_response.raise_for_status.assert_called_once()
+    mock_response.json.assert_not_called()
+    mock_logger.error.assert_called_once_with("HTTP error while rotating access token: error")
+
+@pytest.mark.asyncio
+async def test_invalidate_access_token_negative_request_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_client.post = AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
+
+    # Action
+    with pytest.raises(httpx.RequestError):
+        await plaid.invalidate_access_token("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_logger.error.assert_called_once_with("Request error while rotating access token: RequestError")
 
 # POSITIVE test close
 @pytest.mark.asyncio
