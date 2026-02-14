@@ -115,6 +115,24 @@ class Plaid:
             self.logger.error(f"Request error while rotating access token: {str(e)}")
             raise
 
+    async def get_liabilities(self, access_token: str, account_ids: list[str]|None = None) -> dict:
+        path = "/liabilities/get"
+        payload = item_payload(self.client_id, self.secret, access_token)
+        if account_ids:
+            payload["options"] = {"account_ids": account_ids}
+        
+        try:
+            response = await self.client.post(path, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            self.logger.info("Successfully got liabilities data")
+            return data
+        except httpx.HTTPStatusError as e:
+            self.logger.error(f"HTTP error while getting liabilities data: {e}")
+            raise
+        except httpx.RequestError as e:
+            self.logger.error(f"Request error while getting liabilities data: {e}")
+            raise
 
     async def close(self):
         await self.client.aclose()
