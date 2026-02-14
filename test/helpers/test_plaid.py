@@ -369,6 +369,89 @@ async def test_invalidate_access_token_negative_request_error():
     mock_client.post.assert_awaited_once()
     mock_logger.error.assert_called_once_with("Request error while rotating access token: RequestError")
 
+# POSITIVE tests for remove item
+@pytest.mark.asyncio
+async def test_get_liabilities_positive_no_account_ids():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"data": "some liability data"}
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    data = await plaid.get_liabilities("test_access_token")
+
+    # Verify
+    path = "/liabilities/get"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    mock_client.post.assert_awaited_once_with(path, json=payload)
+    mock_response.raise_for_status.assert_called_once()
+    mock_logger.info.assert_called_once_with("Successfully got liabilities data")
+    assert data == {"data": "some liability data"}
+
+@pytest.mark.asyncio
+async def test_get_liabilities_positive_w_account_ids():
+        # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"data": "some liability data"}
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    data = await plaid.get_liabilities("test_access_token", ["account1", "account2"])
+
+    # Verify
+    path = "/liabilities/get"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    payload["options"] = {"account_ids": ["account1", "account2"]}
+    mock_client.post.assert_awaited_once_with(path, json=payload)
+    mock_response.raise_for_status.assert_called_once()
+    mock_logger.info.assert_called_once_with("Successfully got liabilities data")
+    assert data == {"data": "some liability data"}
+
+# NEGATIVE tests remove item
+@pytest.mark.asyncio
+async def test_get_liabilities_negative_status_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_response = MagicMock()
+    mock_response.text = "error"
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError("HTTPStatusError", request=MagicMock(), response=mock_response)
+
+    mock_client.post = AsyncMock(return_value = mock_response)
+
+    # Action
+    with pytest.raises(httpx.HTTPStatusError):
+        await plaid.get_liabilities("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_response.raise_for_status.assert_called_once()
+    mock_response.json.assert_not_called()
+    mock_logger.error.assert_called_once_with("HTTP error while getting liabilities data: HTTPStatusError")
+
+@pytest.mark.asyncio
+async def test_get_liabilities_negative_request_error():
+    # Setup mocks
+    plaid, mock_client, mock_logger = plaid_with_mocks()
+
+    mock_client.post = AsyncMock(side_effect = httpx.RequestError("RequestError", request = MagicMock(),) )
+
+    # Action
+    with pytest.raises(httpx.RequestError):
+        await plaid.get_liabilities("test_access_token")
+
+    # Verify
+    mock_client.post.assert_awaited_once()
+    mock_logger.error.assert_called_once_with("Request error while getting liabilities data: RequestError")
+
 # POSITIVE test close
 @pytest.mark.asyncio
 async def test_close():
