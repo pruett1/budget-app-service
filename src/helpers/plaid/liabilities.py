@@ -7,7 +7,7 @@ class LiabilitiesAPI:
 
     async def get(self, access_token: str, account_ids: list[str]|None = None) -> dict:
         path = "/liabilities/get"
-        payload = item_payload(self.client_id, self.secret, access_token)
+        payload = item_payload(self._plaid.client_id, self._plaid.secret, access_token)
         if account_ids:
             payload["options"] = {"account_ids": account_ids}
         

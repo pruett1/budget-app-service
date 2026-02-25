@@ -1,5 +1,4 @@
 import httpx
-import json
 from env.envs import Env
 from logging import Logger
 
@@ -29,7 +28,7 @@ class Plaid:
         self.logger.info("Plaid client initialized with base URL: %s", self.base_url)
 
         # sub-clients
-        self.items = TransactionsAPI
+        self.items = ItemsAPI(self)
         self.transactions = TransactionsAPI(self)
         self.liabilities = LiabilitiesAPI(self)
 

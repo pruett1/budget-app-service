@@ -7,7 +7,7 @@ class TransactionsAPI:
 
     async def sync(self, access_token: str, cursor: str|None = None, count: int|None = 100, options: dict|None = None):
         path = "/transactions/sync"
-        payload = item_payload(self.client_id, self.secret, access_token)
+        payload = item_payload(self._plaid.client_id, self._plaid.secret, access_token)
         payload["count"] = count
 
         if cursor:
