@@ -18,6 +18,7 @@ def plaid_with_mocks():
 
     return plaid
 
+# Test transactions sync
 @pytest.mark.asyncio
 async def test_transactions_sync_no_optionals():
     plaid = plaid_with_mocks()
@@ -81,3 +82,33 @@ async def test_transactions_sync_with_options():
 
     plaid._post.assert_awaited_once_with(path, payload)
     assert data == {"data": "some transactions data"}
+
+# Test transactions recurring get
+@pytest.mark.asyncio
+async def test_transactions_recurring():
+    plaid = plaid_with_mocks()
+
+    plaid._post.return_value = {"data": "some recurring transactions"}
+
+    data = await plaid.transactions.recurring("test_access_token")
+
+    path = "/transactions/recurring/get"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+
+    plaid._post.assert_awaited_once_with(path, payload)
+    assert data == {"data": "some recurring transactions"}
+
+@pytest.mark.asyncio
+async def test_transactions_recurring_with_accounts():
+    plaid = plaid_with_mocks()
+
+    plaid._post.return_value = {"data": "some recurring transactions"}
+
+    data = await plaid.transactions.recurring("test_access_token", accounts = ["acct1", "acct2"])
+
+    path = "/transactions/recurring/get"
+    payload = item_payload(plaid.client_id, plaid.secret, "test_access_token")
+    payload["account_ids"] = ["acct1", "acct2"]
+
+    plaid._post.assert_awaited_once_with(path, payload)
+    assert data == {"data": "some recurring transactions"}

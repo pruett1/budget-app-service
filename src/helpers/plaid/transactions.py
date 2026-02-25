@@ -17,3 +17,14 @@ class TransactionsAPI:
             payload["options"] = options
 
         return await self._plaid._post(path, payload)
+    
+    # because this is being built after Dec 2025 all personal_finance_category_versions will be v2
+    # https://plaid.com/docs/api/products/transactions/#transactionsrecurringget
+    async def recurring(self, access_token: str, accounts: list[str]|None = None):
+        path = "/transactions/recurring/get"
+        payload = item_payload(self._plaid.client_id, self._plaid.secret, access_token)
+        
+        if accounts:
+            payload["account_ids"] = accounts
+
+        return await self._plaid._post(path, payload)
