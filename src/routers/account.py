@@ -63,9 +63,14 @@ async def exchange_public_token(request: exchangePublicTokenRequest, response: R
         return "Invalid or expired session token"
     
     try:
-        access_token, item_id = await plaid.exchange_public_token(request.public_token)
+        access_token, item_id = await plaid.items.exchange_public_token(request.public_token)
+        item_data = await plaid.items.get(access_token)
+        item_products = item_data['item']['products']
+        item_consented_products = item_data['item']['consented_products']
+        item_data = {"products": item_products, "consented_products": item_consented_products}
+
         try:
-            item_db.append_item(user_id, encrypt(item_id), encrypt(access_token))
+            item_db.append_item(user_id, encrypt(item_id), encrypt(access_token), data=item_data)
             response.status_code = status.HTTP_204_NO_CONTENT
         except ValueError:
             response.status_code = status.HTTP_400_BAD_REQUEST

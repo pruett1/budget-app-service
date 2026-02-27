@@ -18,7 +18,7 @@ class ItemDB:
             self.logger.error("Failed to insert new item: %s", e)
             raise
 
-    def append_item(self, user_id: str, item_id: str, access_token: str) -> None:
+    def append_item(self, user_id: str, item_id: str, access_token: str, data: dict|None = None) -> None:
         if not user_id or not item_id or not access_token or not isinstance(user_id, str) or not isinstance(item_id, str) or not isinstance(access_token, str):
             raise ValueError("Invalid user_id, item_id, or access_token provided for appending item.")
         
@@ -30,7 +30,15 @@ class ItemDB:
 
         try:
             self.collection.update_one({"user_id": user_id}, 
-                                   {"$push": {"items": {"item_id": item_id, "access_token": access_token}}})
+                                   {"$push": 
+                                        {"items": 
+                                            {
+                                                "item_id": item_id, 
+                                                "access_token": access_token, 
+                                                "item_data": data
+                                            }
+                                        }
+                                    })
         except Exception as e:
             self.logger.error("Failed to append item: %s", e)
             raise
