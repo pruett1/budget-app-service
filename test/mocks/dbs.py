@@ -31,13 +31,13 @@ class MockItemDB:
         if user_id not in self.items:
             self.items[user_id] = []
 
-    def append_item(self, user_id: str, item_id: str, access_token: str):
+    def append_item(self, user_id: str, item_id: str, access_token: str, data: dict|None = None):
         if user_id not in self.items:
             self.items[user_id] = []
         for item in self.items[user_id]:
             if item['item_id'] == item_id:
                 raise ValueError("Item already exists for user")
-        self.items[user_id].append({'item_id': item_id, 'access_token': access_token})
+        self.items[user_id].append({'item_id': item_id, 'access_token': access_token, 'item_data': data})
 
     def clear(self):
         self.items = {}
