@@ -2,6 +2,7 @@ from src.helpers.plaid.client import Plaid
 from src.helpers.plaid.transactions import TransactionsAPI
 from src.helpers.plaid.items import ItemsAPI
 from src.helpers.plaid.liabilities import LiabilitiesAPI
+from src.helpers.plaid.investments import InvestmentsAPI
 from src.requests.payloads import create_link_token_payload
 import httpx
 
@@ -58,6 +59,7 @@ def test_plaid_init():
             assert isinstance(plaid.transactions, TransactionsAPI)
             assert isinstance(plaid.items, ItemsAPI)
             assert isinstance(plaid.liabilities, LiabilitiesAPI)
+            assert isinstance(plaid.investments, InvestmentsAPI)
 
 # Test _post method
 @pytest.mark.asyncio

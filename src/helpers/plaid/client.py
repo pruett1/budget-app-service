@@ -5,6 +5,7 @@ from logging import Logger
 from src.helpers.plaid.transactions import TransactionsAPI
 from src.helpers.plaid.items import ItemsAPI
 from src.helpers.plaid.liabilities import LiabilitiesAPI
+from src.helpers.plaid.investments import InvestmentsAPI
 
 from src.requests.payloads import create_link_token_payload
 
@@ -31,6 +32,7 @@ class Plaid:
         self.items = ItemsAPI(self)
         self.transactions = TransactionsAPI(self)
         self.liabilities = LiabilitiesAPI(self)
+        self.investments = InvestmentsAPI(self)
 
     async def _post(self, path: str, payload: dict):
         try:
