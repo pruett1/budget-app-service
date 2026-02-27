@@ -18,3 +18,10 @@ def exchange_public_token_payload(client_id: str, secret: str, public_token: str
         "secret": secret,
         "public_token": public_token
     }
+
+def item_payload(client_id: str, secret: str, access_token: str) -> dict:
+    return {
+        "client_id": client_id,
+        "secret": secret,
+        "access_token": access_token
+    }

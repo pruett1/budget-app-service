@@ -14,7 +14,7 @@ def account_db_with_mocks() -> AccountDB:
     accountDB.logger = mock_logger
     return accountDB, mock_collection, mock_logger
 
-def test_init():
+def test_db_account_init():
     # Setup mocks; logger and db factory chain
     mock_logger = MagicMock(spec=logging.Logger)
     mock_collection = MagicMock()
@@ -39,7 +39,7 @@ def test_init():
     mock_logger.info.assert_called_with("AccountDB initialized.")
 
 # POSITIVE test for insert method
-def test_insert_positive():
+def test_db_account_insert_positive():
     accountDB, mock_collection, mock_logger = account_db_with_mocks()
 
     # Test data
@@ -54,7 +54,7 @@ def test_insert_positive():
     mock_logger.info.assert_any_call("Insertion complete.")
 
 # NEGATIVE test for insert method
-def test_insert_negative_invalid_data_type():
+def test_db_account_insert_negative_invalid_data_type():
     accountDB, _, _ = account_db_with_mocks()
 
     # Test data - invalid type (string instead of dict)
@@ -67,7 +67,7 @@ def test_insert_negative_invalid_data_type():
     except ValueError as e:
         assert str(e) == "Invalid account data provided for insertion."
 
-def test_insert_negative_none_data():
+def test_db_account_insert_negative_none_data():
     accountDB, _, _ = account_db_with_mocks()
 
     # Test data - None
@@ -81,7 +81,7 @@ def test_insert_negative_none_data():
         assert str(e) == "Invalid account data provided for insertion."
 
 # POSITIVE tests for find_by_field method
-def test_find_by_field_positive_data():
+def test_db_account_find_by_field_positive_data():
     account_db, mock_collection, _ = account_db_with_mocks()
 
     # Test data
@@ -96,7 +96,7 @@ def test_find_by_field_positive_data():
 
     assert result == {"user": "testuser"}, "Expected result to match the input data without _id and password"
 
-def test_find_by_field_positive_no_data():
+def test_db_account_find_by_field_positive_no_data():
     account_db, mock_collection, _ = account_db_with_mocks()
 
     # Test data - no matching entry
@@ -110,7 +110,7 @@ def test_find_by_field_positive_no_data():
     assert result is None, "Expected result to be None when no matching entry is found"
 
 # NEGATIVE tests for find_by_field method
-def test_find_by_field_negative_invalid_field_type():
+def test_db_account_find_by_field_negative_invalid_field_type():
     account_db, _, _ = account_db_with_mocks()
 
     # Call find_by_field method with invalid field type (int instead of str) and expect ValueError
@@ -120,7 +120,7 @@ def test_find_by_field_negative_invalid_field_type():
     except ValueError as e:
         assert str(e) == "Invalid field or value provided for search."
 
-def test_find_by_field_negative_invalid_value_type():
+def test_db_account_find_by_field_negative_invalid_value_type():
     account_db, _, _ = account_db_with_mocks()
 
     # Call find_by_field method with invalid value type (int instead of str) and expect ValueError
@@ -130,7 +130,7 @@ def test_find_by_field_negative_invalid_value_type():
     except ValueError as e:
         assert str(e) == "Invalid field or value provided for search."
 
-def test_find_by_field_negative_empty_field():
+def test_db_account_find_by_field_negative_empty_field():
     account_db, _, _ = account_db_with_mocks()
 
     # Call find_by_field method with empty field and expect ValueError
@@ -140,7 +140,7 @@ def test_find_by_field_negative_empty_field():
     except ValueError as e:
         assert str(e) == "Invalid field or value provided for search."
 
-def test_find_by_field_negative_empty_value():
+def test_db_account_find_by_field_negative_empty_value():
     account_db, _, _ = account_db_with_mocks()
 
     # Call find_by_field method with empty value and expect ValueError
@@ -151,7 +151,7 @@ def test_find_by_field_negative_empty_value():
         assert str(e) == "Invalid field or value provided for search."
 
 # POSITIVE tests for validate_credentials method
-def test_validate_credentials_positive_valid_credentials():
+def test_db_account_validate_credentials_positive_valid_credentials():
     account_db, mock_collection, _ = account_db_with_mocks()
 
     # Test data - valid credentials
@@ -165,7 +165,7 @@ def test_validate_credentials_positive_valid_credentials():
     mock_collection.find_one.assert_called_once_with({"user": "testuser"})
     assert result == {"user": "testuser"}, "Expected result to match the input data without _id and password"
 
-def test_validate_credentials_positive_invalid_credentials():
+def test_db_account_validate_credentials_positive_invalid_credentials():
     account_db, mock_collection, _ = account_db_with_mocks()
 
     # Test data - invalid credentials
@@ -180,7 +180,7 @@ def test_validate_credentials_positive_invalid_credentials():
     assert result is None, "Expected result to be None for invalid credentials"
 
 # NEGATIVE tests for validate_credentials method
-def test_validate_credentials_negative_invalid_username_type():
+def test_db_account_validate_credentials_negative_invalid_username_type():
     account_db, _, _ = account_db_with_mocks()
 
     # Call validate_credentials method with invalid username type (int instead of str) and expect ValueError
@@ -190,7 +190,7 @@ def test_validate_credentials_negative_invalid_username_type():
     except ValueError as e:
         assert str(e) == "Invalid username or password provided for validation."
 
-def test_validate_credentials_negative_invalid_password_type():
+def test_db_account_validate_credentials_negative_invalid_password_type():
     account_db, _, _ = account_db_with_mocks()
 
     # Call validate_credentials method with invalid password type (int instead of str) and expect ValueError
@@ -200,7 +200,7 @@ def test_validate_credentials_negative_invalid_password_type():
     except ValueError as e:
         assert str(e) == "Invalid username or password provided for validation."
 
-def test_validate_credentials_negative_empty_username():
+def test_db_account_validate_credentials_negative_empty_username():
     account_db, _, _ = account_db_with_mocks()
 
     # Call validate_credentials method with empty username and expect ValueError
@@ -210,7 +210,7 @@ def test_validate_credentials_negative_empty_username():
     except ValueError as e:
         assert str(e) == "Invalid username or password provided for validation."
 
-def test_validate_credentials_negative_empty_password():
+def test_db_account_validate_credentials_negative_empty_password():
     account_db, _, _ = account_db_with_mocks()
 
     # Call validate_credentials method with empty password and expect ValueError
@@ -221,7 +221,7 @@ def test_validate_credentials_negative_empty_password():
         assert str(e) == "Invalid username or password provided for validation."
 
 # POSTIVE test for close method
-def test_close():
+def test_db_account_close():
     account_db, mock_collection, _ = account_db_with_mocks()
 
     # Call close method

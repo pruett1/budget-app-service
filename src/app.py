@@ -6,16 +6,16 @@ from src.db.account_db import AccountDB
 from src.db.item_db import ItemDB
 from src.routers import account
 from src.helpers.sessions import SessionManager
-from src.helpers.plaid import Plaid
+from src.helpers.plaid.client import Plaid
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): #pragma: no cover
     logger = logging.getLogger("uvicorn.error")
     logger.setLevel(logging.DEBUG)
 
-    logger.warning("Initializing application resources...")
+    logger.info("Initializing application resources...")
     logger.info("Setting up SessionManager and AccountDB...")
-    logger.debug("Debugging information: Application is starting up.")
+    logger.info("Debugging information: Application is starting up.")
 
     app.state.sessionManager = SessionManager("sandbox", logger)
     app.state.accountDB = AccountDB("sandbox", logger)

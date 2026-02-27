@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
+from unittest.mock import MagicMock, AsyncMock
 import pytest
 import re
 
 from src.app import app
 from test.mocks.dbs import MockAccountDB, MockItemDB
-from test.mocks.plaid import MockPlaid
 from test.mocks.session_manager import MockSessionManager
 from src.helpers.dependencies import get_account_db, get_item_db, get_logger, get_plaid_client, get_session_manager
 from src.helpers.encryption import decrypt, pwd_hash
@@ -16,7 +16,7 @@ client = TestClient(app)
 # Set up mock dependencies
 mock_account_db = MockAccountDB()
 mock_item_db = MockItemDB()
-mock_plaid = MockPlaid()
+mock_plaid = MagicMock()
 mock_session_manager = MockSessionManager()
 
 app.dependency_overrides[get_account_db] = lambda: mock_account_db
@@ -37,7 +37,7 @@ def clear_dbs():
 
 # Positive test for account creation
 @pytest.mark.usefixtures("caplog")
-def test_create_account_positive(caplog):
+def test_routes_account_create_positive(caplog):
     # When create a new account with valid details
     request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
     response = client.post("/account/create", json=request)
@@ -59,7 +59,7 @@ def test_create_account_positive(caplog):
 
 # Negative tests for account creation
 @pytest.mark.usefixtures("caplog")
-def test_create_account_negative_duplicate_username(caplog):
+def test_routes_account_create_negative_duplicate_username(caplog):
     # Given an exisiting account
     request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
     response = client.post("/account/create", json=request)
@@ -74,7 +74,7 @@ def test_create_account_negative_duplicate_username(caplog):
     assert response.json() == "Username already exists"
 
 @pytest.mark.usefixtures("caplog")
-def test_reate_account_negative_invalid_email(caplog):
+def test_routes_account_create_negative_invalid_email(caplog):
     # When creating an account with an invalid email format
     request = {"username": "testuser", "password": "testpass", "email": "invalidemail"}
     response = client.post("/account/create", json=request)
@@ -86,7 +86,7 @@ def test_reate_account_negative_invalid_email(caplog):
     assert mock_account_db.find_by_field("user", "testuser") is None
 
 @pytest.mark.usefixtures("caplog")
-def test_create_account_negative_duplicate_email(caplog):
+def test_routes_account_create_negative_duplicate_email(caplog):
     # Given an existing account
     request_1 = {"username": "user1", "password": "pass1", "email": "testuser@example.com"}
     response_1 = client.post("/account/create", json=request_1)
@@ -103,7 +103,10 @@ def test_create_account_negative_duplicate_email(caplog):
     assert mock_account_db.find_by_field("user", "user2") is None
 
 # Positive test for login
-def test_login_positive():
+def test_routes_account_login_positive():
+    mock_plaid.create_link_token = AsyncMock()
+    mock_plaid.create_link_token.return_value = "mock_link_token"
+
     # Given an existing account
     create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
     create_response = client.post("/account/create", json=create_request)
@@ -115,6 +118,7 @@ def test_login_positive():
     login_response = client.post("/account/login", json=login_request)
 
     # Then it should succeed and return tokens
+    mock_plaid.create_link_token.assert_awaited_once_with(user_id)
     assert login_response.status_code == 200
     assert login_response.json() == {
         "jwt_token": f"{user_id}:mock_session_token",
@@ -122,7 +126,7 @@ def test_login_positive():
     }
 
 # Negative test for login
-def test_login_negative_invalid_username():
+def test_routes_account_login_negative_invalid_username():
     # Given an existing account
     create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
     create_response = client.post("/account/create", json=create_request)
@@ -136,7 +140,7 @@ def test_login_negative_invalid_username():
     assert login_response.status_code == 401
     assert login_response.json() == "Invalid credentials"
 
-def test_login_negative_invalid_password():
+def test_routes_account_login_negative_invalid_password():
     # Given an existing account
     create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
     create_response = client.post("/account/create", json=create_request)
@@ -151,7 +155,12 @@ def test_login_negative_invalid_password():
     assert login_response.json() == "Invalid credentials"
 
 # Positive test for exchange_public_token
-def test_exchange_public_token_positive():
+def test_routes_account_exchange_public_token_positive():
+    mock_plaid.items.exchange_public_token = AsyncMock()
+    mock_plaid.items.exchange_public_token.return_value = ("mock_access_token", "mock_item_id")
+    mock_plaid.items.get = AsyncMock()
+    mock_plaid.items.get.return_value = {"item": {"products": ["prod1"], "consented_products": ["prod1"]}}
+
     # Given an existing account and valid JWT token
     create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
     create_response = client.post("/account/create", json=create_request)
@@ -177,8 +186,11 @@ def test_exchange_public_token_positive():
     assert decrypt(user_items[0]['item_id']) == "mock_item_id"
     assert decrypt(user_items[0]['access_token']) == "mock_access_token"
 
+    mock_plaid.items.exchange_public_token.assert_awaited_once_with("mock_public_token")
+    mock_plaid.items.get.assert_awaited_once_with("mock_access_token")
+
 # Negative test for exchange_public_token
-def test_exchange_public_token_negative_invalid_jwt():
+def test_routes_account_exchange_public_token_negative_invalid_jwt():
     # When exchanging a public token with an invalid JWT token
     exchange_request = {"jwt_token": "user_id:invalid_jwt_token", "public_token": "mock_public_token"}
     exchange_response = client.post("/account/exchange_public_token", json=exchange_request)
