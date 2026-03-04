@@ -38,7 +38,7 @@ class Plaid:
         try:
             response = await self.client.post(path, json=payload)
             response.raise_for_status()
-            self.logger.info(f"Post: {path}, Status: {response.status_code()}")
+            self.logger.info(f"Post: {path}, Status: {response.status_code}")
 
             if not response.content:
                 return None
@@ -48,6 +48,8 @@ class Plaid:
             self.logger.error(f"Post to {path} resulted in HTTP error: {e.response.text}")
         except httpx.RequestError as e:
             self.logger.error(f"Request error with post to {path}: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Error: {str(e)}")
         
     async def create_link_token(self, user_id: str) -> str:
         path = "/link/token/create"
