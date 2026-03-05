@@ -1,6 +1,5 @@
 import httpx
 from env.envs import Env
-from logging import Logger
 
 from src.helpers.plaid.transactions import TransactionsAPI
 from src.helpers.plaid.items import ItemsAPI
@@ -10,7 +9,7 @@ from src.helpers.plaid.investments import InvestmentsAPI
 from src.requests.payloads import create_link_token_payload
 
 class Plaid:
-    def __init__(self, env: str, logger: Logger):
+    def __init__(self, env: str, logger):
         self.logger = logger
 
         config = Env(env)['plaid']
@@ -37,9 +36,9 @@ class Plaid:
     async def _post(self, path: str, payload: dict):
         try:
             response = await self.client.post(path, json=payload)
+            self.logger.debug(f"Post to Plaid: {path}", caller="plaid_client", status_code=response.status_code, body=response.text)
             response.raise_for_status()
-            self.logger.info(f"Post: {path}, Status: {response.status_code}")
-
+            
             if not response.content:
                 return None
 

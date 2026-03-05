@@ -1,8 +1,7 @@
 from src.db.mongo import DB
-from logging import Logger
 
 class ItemDB:
-    def __init__(self, env: str, logger: Logger, db_factory = DB):
+    def __init__(self, env: str, logger, db_factory = DB):
         self.collection = db_factory(env).get_db().items
         self.logger = logger
         self.logger.info("ItemDB initialized.")
@@ -11,7 +10,7 @@ class ItemDB:
         if not user_id or not isinstance(user_id, str):
             raise ValueError("Invalid user_id provided for insertion.")
 
-        self.logger.info("Inserting new item...")
+        self.logger.debug("Inserting new item...")
         try:
             self.collection.insert_one({"user_id": user_id, "items": []})
         except Exception as e:
@@ -47,7 +46,7 @@ class ItemDB:
         if not user_id or not isinstance(user_id, str):
             raise ValueError("Invalid user_id provided for retrieving items.")
 
-        self.logger.info("Retrieving items for user_id: %s", user_id)
+        self.logger.debug("Retrieving items for user_id: %s", user_id)
         record = self.collection.find_one({"user_id": user_id})
         if record:
             return record.get("items")
@@ -59,7 +58,7 @@ class ItemDB:
         if not user_id or not item_id or not isinstance(user_id, str) or not isinstance(item_id, str):
             raise ValueError("Invalid user_id or item_id provided for removing item.")
 
-        self.logger.info("Removing item_id: %s from user_id: %s", item_id, user_id)
+        self.logger.debug("Removing item_id: %s from user_id: %s", item_id, user_id)
         try:
             self.collection.update_one({"user_id": user_id}, {"$pull": {"items": {"item_id": item_id}}})
         except Exception as e:
@@ -70,7 +69,7 @@ class ItemDB:
         if not user_id or not item_id or not new_access_token or not isinstance(user_id, str) or not isinstance(item_id, str) or not isinstance(new_access_token, str):
             raise ValueError("Invalid user_id, item_id, or new_access_token provided for updating access token.")
 
-        self.logger.info("Updating access token for item_id: %s of user_id: %s", item_id, user_id)
+        self.logger.debug("Updating access token for item_id: %s of user_id: %s", item_id, user_id)
         try:
             self.collection.update_one(
                 {"user_id": user_id, "items.item_id": item_id},

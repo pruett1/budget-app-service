@@ -4,15 +4,14 @@ from env.envs import Env
 import base64
 import hmac
 import hashlib
-from logging import Logger
 
 class SessionManager:
-    def __init__(self, env: str, logger: Logger):
-        self.sessions = set()
+    def __init__(self, env: str, logger):
+        # self.sessions = set() #this could get quite cumbersome
         config = Env(env)['session']
         self.session_duration = config['DURATION_SECONDS']
         self.secret_key = config['SECRET_KEY']
-        self.cleanup_interval = config['CLEANUP_INTERVAL_SECONDS']
+        # self.cleanup_interval = config['CLEANUP_INTERVAL_SECONDS'] #this is kinda pointless if not storing all jwt tokens
         self.header_b64 = base64.urlsafe_b64encode(bytes(str(config['HEADER']), encoding='utf-8')).rstrip(b'=').decode()
         self.alg = config['HEADER']['algorithm']
         self.logger = logger
@@ -23,7 +22,7 @@ class SessionManager:
         signature = hmac.new(self.secret_key.encode(), f"{self.header_b64}.{payload}".encode(), getattr(hashlib, self.alg.lower()) ).hexdigest()
         signature_b64 = base64.urlsafe_b64encode(bytes(signature, encoding='utf-8')).rstrip(b'=').decode()
         session_token = f"{self.header_b64}.{payload}.{signature_b64}"
-        self.sessions.add(session_token)
+        # self.sessions.add(session_token)
         return session_token
 
     def create_payload(self, user_id: str) -> str:
@@ -34,7 +33,7 @@ class SessionManager:
         return payload_str
     
     def validate(self, session_token: str) -> str:
-        self.logger.info("Validating session token")
+        self.logger.debug("Validating session token")
         # if session_token not in self.sessions:
         #     raise ValueError("Invalid session token")
 
@@ -60,7 +59,7 @@ class SessionManager:
             self.logger.error("Session token has expired")
             raise ValueError("Session token has expired")
         
-        self.logger.info("Valid session token")
+        self.logger.debug("Valid session token")
         return payload['id']
     
     def invalidate(self, session_id: str) -> None:
