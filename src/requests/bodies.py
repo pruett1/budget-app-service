@@ -10,5 +10,4 @@ class loginRequest(BaseModel):
     password: str
 
 class exchangePublicTokenRequest(BaseModel):
-    jwt_token: str
     public_token: str
