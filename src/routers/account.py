@@ -63,6 +63,22 @@ async def login(request_body: loginRequest, request: Request, response: Response
 @router.get('/logout')
 async def logout(request: Request, response: Response, session_manager = Depends(get_session_manager), logger=Depends(get_logger)):
     logger.debug("Logging Out", path='/logout', route='/account')
-    session_token = request.headers.get('Authorization')[7:]  # Remove "Bearer " prefix
-    session_manager.validate(session_token)
+    auth = request.headers.get('Authorization')
+    if not auth:
+        logger.warning("Logout attempted without Authorization header", path='/logout', route='/account')
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"error": "Missing Authorization header"}
+    
+    try:
+        scheme, session_token = auth.split(' ')
+        if scheme.lower() != 'bearer':
+            logger.warning("Logout attempted with invalid Authorization header scheme", path='/logout', route='/account')
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"error": "Invalid Authorization header scheme (must be Bearer)"}
+    except ValueError:
+        logger.warning("Logout attempted with malformed Authorization header", path='/logout', route='/account')
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"error": "Malformed Authorization header"}
+
+    session_manager.invalidate(session_token)
     response.status_code = status.HTTP_204_NO_CONTENT
