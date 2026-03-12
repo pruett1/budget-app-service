@@ -1,13 +1,14 @@
 import logging
 import structlog
-import contextvars
 import os
 from datetime import datetime
-
-request_id_ctx = contextvars.ContextVar("request_id", default=None)
+from src.helpers.request_context_middleware import request_ctx
 
 def add_context_vars(_, __, event_dict):
-    event_dict['request_id'] = request_id_ctx.get()
+    ctx = request_ctx.get(None)
+    event_dict['request_id'] = ctx.request_id if ctx else None
+    if ctx and ctx.user_id:
+        event_dict['user_id'] = ctx.user_id
     return event_dict
 
 def config_logger(name: str, file_name: str|None = None, backup: bool|None = None) -> None:

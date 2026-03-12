@@ -1,17 +1,19 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 import re
 
-from src.helpers.logger import config_logger, get_struct_logger, request_id_ctx
+from src.helpers.logger import config_logger, get_struct_logger
 
 from src.db.account_db import AccountDB
 from src.db.item_db import ItemDB
 from src.helpers.sessions import SessionManager
 from src.helpers.plaid.client import Plaid
+from src.helpers.dependencies import require_user
 
 from src.routers import account, linked_plaid
+from src.helpers.request_context_middleware import RequestContextMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI): #pragma: no cover
@@ -34,22 +36,11 @@ async def lifespan(app: FastAPI): #pragma: no cover
 
 app = FastAPI(lifespan=lifespan)
 
-@app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    request_id = request.headers.get('request-id')
-
-    if not request_id or not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', request_id):
-        return JSONResponse(status_code=400, content={"error": "Missing or invalid request-id header (must be UUIDv4)"})
-
-    request_id_ctx.set(request_id)
-
-    response = await call_next(request)
-    response.headers["request-id"] = request_id # echo back request id
-    return response
+app.add_middleware(RequestContextMiddleware)
 
 @app.get('/ping')
 async def ping():
     return {"message": "pong"}
 
 app.include_router(account.router, prefix="/account")
-app.include_router(linked_plaid.router, prefix="/plaid")
+app.include_router(linked_plaid.router, prefix="/plaid", dependencies=[Depends(require_user)])
