@@ -7,11 +7,11 @@ import hashlib
 
 class SessionManager:
     def __init__(self, env: str, logger):
-        # self.sessions = set() #this could get quite cumbersome
+        self.deactivated_sessions = set()
         config = Env(env)['session']
         self.session_duration = config['DURATION_SECONDS']
         self.secret_key = config['SECRET_KEY']
-        # self.cleanup_interval = config['CLEANUP_INTERVAL_SECONDS'] #this is kinda pointless if not storing all jwt tokens
+        self.cleanup_interval = config['CLEANUP_INTERVAL_SECONDS']
         self.header_b64 = base64.urlsafe_b64encode(bytes(str(config['HEADER']), encoding='utf-8')).rstrip(b'=').decode()
         self.alg = config['HEADER']['algorithm']
         self.logger = logger
@@ -22,7 +22,6 @@ class SessionManager:
         signature = hmac.new(self.secret_key.encode(), f"{self.header_b64}.{payload}".encode(), getattr(hashlib, self.alg.lower()) ).hexdigest()
         signature_b64 = base64.urlsafe_b64encode(bytes(signature, encoding='utf-8')).rstrip(b'=').decode()
         session_token = f"{self.header_b64}.{payload}.{signature_b64}"
-        # self.sessions.add(session_token)
         return session_token
 
     def create_payload(self, user_id: str) -> str:
@@ -33,13 +32,12 @@ class SessionManager:
         return payload_str
     
     def validate(self, session_token: str) -> str:
-        self.logger.debug("Validating session token")
-        # if session_token not in self.sessions:
-        #     raise ValueError("Invalid session token")
+        if session_token in self.deactivated_sessions:
+            self.logger.error("Session token has been deactivated")
+            raise ValueError("Session token has been deactivated")
 
         try:
             header_b64, payload_b64, signature_b64 = session_token.split('.')
-            self.logger.debug("Session token parsed successfully")
         except ValueError:
             self.logger.error("Invalid session token format")
             raise ValueError("Invalid session token format")
@@ -59,28 +57,26 @@ class SessionManager:
             self.logger.error("Session token has expired")
             raise ValueError("Session token has expired")
         
-        self.logger.debug("Valid session token")
         return payload['id']
     
     def invalidate(self, session_id: str) -> None:
         self.logger.debug("Invalidating specified session token")
-        if session_id in self.sessions:
-            self.sessions.remove(session_id)
+        self.deactivated_sessions.add(session_id)
     
-    # def cleanup(self):
-    #     current = time.time()
-    #     expired_sessions = []
+    def cleanup(self):
+        current = time.time()
+        expired_sessions = []
 
-    #     for sid in self.sessions:
-    #         try:
-    #             _, payload_b64, _ = sid.split('.')
-    #             payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode()
-    #             payload = json.loads(payload_str)
-    #             if payload['exp'] < current:
-    #                 expired_sessions.append(sid)
-    #         except:
-    #             expired_sessions.append(sid)
+        for token in self.deactivated_sessions:
+            try:
+                _, payload_b64, _ = token.split('.')
+                payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode()
+                payload = json.loads(payload_str)
+                if payload['exp'] < current:
+                    expired_sessions.append(sid)
+            except:
+                expired_sessions.append(sid)
 
-    #     self.logger.debug(f"Cleaning up {len(expired_sessions)} expired sessions")
-    #     for sid in expired_sessions:
-    #         self.sessions.remove(sid)
+        self.logger.debug(f"Cleaning up {len(expired_sessions)} expired deactivated sessions")
+        for sid in expired_sessions:
+            self.deactivated_sessions.remove(sid)
