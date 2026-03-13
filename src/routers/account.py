@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from src.helpers.dependencies import get_account_db, get_item_db, get_session_manager, get_logger, get_plaid_client
-from src.helpers.encryption import pwd_hash, encrypt, decrypt
-from src.requests.bodies import createAccountRequest, loginRequest
+from src.helpers.encryption import pwd_hash
+from src.requests.bodies import CreateAccountRequest, LoginRequest
 
 import uuid
 import re
@@ -10,7 +10,7 @@ import re
 router = APIRouter()
 
 @router.post('/create')
-async def create_account(request_body: createAccountRequest, request: Request, response: Response, 
+async def create_account(request_body: CreateAccountRequest, response: Response, 
                          account_db = Depends(get_account_db), item_db = Depends(get_item_db),
                          logger = Depends(get_logger)):
     logger.debug("Account Create Attempt", path='/create', route='/account')
@@ -41,7 +41,7 @@ async def create_account(request_body: createAccountRequest, request: Request, r
     return {"message": "Account created successfully"}
 
 @router.post('/login')
-async def login(request_body: loginRequest, request: Request, response: Response, 
+async def login(request_body: LoginRequest, response: Response, 
                 account_db = Depends(get_account_db), session_manager = Depends(get_session_manager), 
                 plaid = Depends(get_plaid_client), logger = Depends(get_logger)):
     logger.debug("Login Attempt", user=request_body.username, path='/login', route='/account')
