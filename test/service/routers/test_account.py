@@ -29,6 +29,13 @@ def client_and_mocks():
     app.dependency_overrides[get_session_manager] = lambda: session_manager
     app.dependency_overrides[get_logger] = lambda: logger
 
+    # ensure middleware and handlers that read app.state have expected values
+    app.state.logger = logger
+    app.state.sessionManager = session_manager
+    app.state.accountDB = account_db
+    app.state.itemDB = item_db
+    app.state.plaid = plaid
+
     yield {
         "client": client,
         "account_db": account_db,
@@ -43,7 +50,7 @@ def client_and_mocks():
 def _headers():
     return {"request-id": str(uuid.uuid4())}
 
-def test_create_account_success(client_and_mocks):
+def test_router_account_create_success(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -74,7 +81,7 @@ def test_create_account_success(client_and_mocks):
     logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
     logger.debug.assert_any_call("Successfully created account for user", user="u1")
 
-def test_create_account_duplicate_username(client_and_mocks):
+def test_router_account_create_duplicate_username(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -92,7 +99,7 @@ def test_create_account_duplicate_username(client_and_mocks):
     logger.warning.assert_called_once_with("Username already exists", user="u2")
     logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
 
-def test_create_account_invalid_email(client_and_mocks):
+def test_router_account_create_invalid_email(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -110,7 +117,7 @@ def test_create_account_invalid_email(client_and_mocks):
     logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
 
 
-def test_create_account_duplicate_email(client_and_mocks):
+def test_router_account_create_duplicate_email(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -134,7 +141,7 @@ def test_create_account_duplicate_email(client_and_mocks):
     logger.warning.assert_called_once_with("Email already exists", email="dup@example.com")
     logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
 
-def test_login_success(client_and_mocks):
+def test_router_account_login_success(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -157,7 +164,7 @@ def test_login_success(client_and_mocks):
     # initial login debug
     c["logger"].debug.assert_any_call("Login Attempt", user="lu", path='/login', route='/account')
 
-def test_login_invalid_credentials(client_and_mocks):
+def test_router_account_login_invalid_credentials(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -171,7 +178,7 @@ def test_login_invalid_credentials(client_and_mocks):
     assert resp.json() == {"error": "Invalid credentials"}
     c["logger"].debug.assert_any_call("Login Attempt", user="no", path='/login', route='/account')
 
-def test_login_plaid_error_returns_500(client_and_mocks):
+def test_router_account_login_plaid_error_returns_500(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     account_db = c["account_db"]
@@ -190,7 +197,7 @@ def test_login_plaid_error_returns_500(client_and_mocks):
     logger.error.assert_called_once_with("Exception while creating link token", exception="boom")
     logger.debug.assert_any_call("Login Attempt", user="lu", path='/login', route='/account')
 
-def test_logout_valid_session(client_and_mocks):
+def test_router_account_logout_valid_session(client_and_mocks):
     c = client_and_mocks
     client = c["client"]
     session_manager = c["session_manager"]
@@ -202,5 +209,42 @@ def test_logout_valid_session(client_and_mocks):
 
     resp = client.get("/account/logout", headers=headers)
     assert resp.status_code == 204
-    session_manager.validate.assert_called_once_with(token)
-    logger.debug.assert_called_once_with("Logging Out", path='/logout', route='/account')
+    session_manager.invalidate.assert_called_once_with(token)
+    logger.debug.assert_any_call("Logging Out", path='/logout', route='/account')
+
+
+def test_router_account_logout_missing_authorization_header(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    logger = c["logger"]
+
+    resp = client.get("/account/logout", headers=_headers())
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Missing Authorization header"}
+    logger.warning.assert_called_once_with("Logout attempted without Authorization header", path='/logout', route='/account')
+
+
+def test_router_account_logout_malformed_authorization_header(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    logger = c["logger"]
+
+    headers = _headers()
+    headers["Authorization"] = "MalformedHeader"
+    resp = client.get("/account/logout", headers=headers)
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Invalid or expired token"}
+    logger.debug.assert_any_call("Failed to validate token", path='/account/logout', method='GET')
+
+
+def test_router_account_logout_invalid_scheme(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    logger = c["logger"]
+
+    headers = _headers()
+    headers["Authorization"] = "Token abc123"
+    resp = client.get("/account/logout", headers=headers)
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Invalid Authorization header scheme (must be Bearer)"}
+    logger.debug.assert_any_call("Authorization header has invalid scheme", path='/account/logout', method='GET')

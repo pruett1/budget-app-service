@@ -25,10 +25,14 @@ def patch_resources(monkeypatch):
     mock_plaid.close = AsyncMock()
     mock_session_manager = MagicMock()
 
-    monkeypatch.setattr(app_module, "AccountDB", lambda env, logger: mock_account_db)
-    monkeypatch.setattr(app_module, "ItemDB", lambda env, logger: mock_item_db)
-    monkeypatch.setattr(app_module, "Plaid", lambda env, logger: mock_plaid)
-    monkeypatch.setattr(app_module, "SessionManager", lambda env, logger: mock_session_manager)
+    # We don't patch constructors here; tests use explicit `app.state` values.
+    # ensure the imported app has the expected state even if lifespan isn't run
+    app.state.logger = DummyLogger()
+    app.state.sessionManager = mock_session_manager
+    app.state.accountDB = mock_account_db
+    app.state.itemDB = mock_item_db
+    app.state.plaid = mock_plaid
+
     yield {
         "account": mock_account_db,
         "item": mock_item_db,
@@ -45,21 +49,21 @@ def test_app_ping():
     assert response.json() == {"message": "pong"}
 
 
-def test_middleware_missing_header_returns_400():
+def test_app_middleware_missing_header_returns_400():
     client = TestClient(app)
     response = client.get("/ping")
     assert response.status_code == 400
-    assert response.json() == {"error": "Missing or invalid request-id header (must be UUIDv4)"}
+    assert response.json() == {"error": "Missing request-id header"}
 
 
-def test_middleware_invalid_uuid_returns_400():
+def test_app_middleware_invalid_uuid_returns_400():
     client = TestClient(app)
     response = client.get("/ping", headers={"request-id": "not-a-uuid"})
     assert response.status_code == 400
-    assert response.json() == {"error": "Missing or invalid request-id header (must be UUIDv4)"}
+    assert response.json() == {"error": "Invalid request-id header (must be UUIDv4)"}
 
 
-def test_middleware_valid_uuid_echoes_header():
+def test_app_middleware_valid_uuid_echoes_header():
     client = TestClient(app)
     rid = str(uuid.uuid4())
     response = client.get("/ping", headers={"request-id": rid})
@@ -67,8 +71,39 @@ def test_middleware_valid_uuid_echoes_header():
     assert response.headers.get("request-id") == rid
 
 
+def test_app_middleware_invalid_authorization_scheme_returns_400():
+    client = TestClient(app)
+    rid = str(uuid.uuid4())
+    # send Authorization with wrong scheme
+    response = client.get("/ping", headers={"request-id": rid, "Authorization": "Token abc"})
+    assert response.status_code == 400
+    assert response.json() == {"error": "Invalid Authorization header scheme (must be Bearer)"}
+
+
+def test_app_middleware_invalid_token_returns_401():
+    client = TestClient(app)
+    rid = str(uuid.uuid4())
+    # make session manager validate raise an exception to simulate invalid token
+    client.app.state.sessionManager.validate.side_effect = Exception("bad token")
+
+    response = client.get("/ping", headers={"request-id": rid, "Authorization": "Bearer badtoken"})
+    assert response.status_code == 401
+    assert response.json() == {"error": "Invalid or expired token"}
+
+
+def test_app_middleware_valid_bearer_sets_user_and_echoes_request_id():
+    client = TestClient(app)
+    rid = str(uuid.uuid4())
+    # session manager validate should return a user id
+    client.app.state.sessionManager.validate.return_value = "user-123"
+
+    response = client.get("/ping", headers={"request-id": rid, "Authorization": "Bearer goodtoken"})
+    assert response.status_code == 200
+    assert response.headers.get("request-id") == rid
+
+
 @pytest.mark.asyncio
-async def test_lifespan_sets_and_closes_resources(monkeypatch):
+async def test_app_lifespan_sets_and_closes_resources(monkeypatch):
     # create lightweight mocks for resources and logger
     class DummyLogger:
         def info(self, *a, **k):
