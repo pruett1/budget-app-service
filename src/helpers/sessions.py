@@ -51,9 +51,13 @@ class SessionManager:
             raise ValueError("Invalid session token signature")
         
         payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode().replace("'", '"')
-        payload = json.loads(payload_str)
+        try:
+            payload = json.loads(payload_str)
+        except Exception:
+            self.logger.error("Invalid session token payload")
+            raise ValueError("Invalid session token payload")
 
-        if payload['exp'] < int(time.time()):
+        if payload.get('exp', 0) < int(time.time()):
             self.invalidate(session_token)
             self.logger.error("Session token has expired")
             raise ValueError("Session token has expired")
@@ -68,16 +72,18 @@ class SessionManager:
         current = time.time()
         expired_sessions = []
 
-        for token in self.deactivated_sessions:
+        # iterate over a snapshot to allow removing from the set
+        for token in list(self.deactivated_sessions):
             try:
                 _, payload_b64, _ = token.split('.')
-                payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode()
+                payload_str = base64.urlsafe_b64decode(payload_b64 + '==').decode().replace("'", '"')
                 payload = json.loads(payload_str)
-                if payload['exp'] < current:
-                    expired_sessions.append(sid)
-            except:
-                expired_sessions.append(sid)
+                if payload.get('exp', 0) < current:
+                    expired_sessions.append(token)
+            except Exception:
+                # if token is malformed, remove it
+                expired_sessions.append(token)
 
         self.logger.debug(f"Cleaning up {len(expired_sessions)} expired deactivated sessions")
-        for sid in expired_sessions:
-            self.deactivated_sessions.remove(sid)
+        for token in expired_sessions:
+            self.deactivated_sessions.discard(token)
