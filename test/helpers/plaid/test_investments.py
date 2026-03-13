@@ -1,6 +1,6 @@
 from src.helpers.plaid.client import Plaid
 from src.helpers.plaid.investments import InvestmentsAPI
-from src.requests.payloads import item_payload
+from src.requests.plaid_payloads import item_payload
 
 from unittest.mock import AsyncMock
 import pytest

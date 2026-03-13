@@ -1,6 +1,6 @@
-from helpers.plaid.client import Plaid
-from helpers.plaid.liabilities import LiabilitiesAPI
-from src.requests.payloads import item_payload
+from src.helpers.plaid.client import Plaid
+from src.helpers.plaid.liabilities import LiabilitiesAPI
+from src.requests.plaid_payloads import item_payload
 
 from unittest.mock import AsyncMock
 import pytest

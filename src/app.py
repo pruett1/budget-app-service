@@ -1,8 +1,5 @@
-from fastapi import FastAPI, Request, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
-
-import re
 
 from src.helpers.logger import config_logger, get_struct_logger
 
@@ -10,9 +7,10 @@ from src.db.account_db import AccountDB
 from src.db.item_db import ItemDB
 from src.helpers.sessions import SessionManager
 from src.helpers.plaid.client import Plaid
-from src.helpers.dependencies import require_user
 
 from src.routers import account, linked_plaid
+
+from src.helpers.dependencies import require_user
 from src.helpers.request_context_middleware import RequestContextMiddleware
 
 @asynccontextmanager

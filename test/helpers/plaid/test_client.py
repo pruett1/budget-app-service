@@ -3,7 +3,7 @@ from src.helpers.plaid.transactions import TransactionsAPI
 from src.helpers.plaid.items import ItemsAPI
 from src.helpers.plaid.liabilities import LiabilitiesAPI
 from src.helpers.plaid.investments import InvestmentsAPI
-from src.requests.payloads import create_link_token_payload
+from src.requests.plaid_payloads import create_link_token_payload
 import httpx
 
 from unittest.mock import MagicMock, patch, AsyncMock

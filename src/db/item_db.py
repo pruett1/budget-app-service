@@ -1,6 +1,7 @@
 from src.db.mongo import DB
+from src.helpers.encryption import encrypt
+
 from datetime import datetime, UTC
-from src.helpers.encryption import encrypt, decrypt
 
 class ItemDB:
     def __init__(self, env: str, logger, db_factory = DB):

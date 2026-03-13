@@ -1,6 +1,6 @@
 from src.helpers.plaid.client import Plaid
 from src.helpers.plaid.items import ItemsAPI
-from src.requests.payloads import exchange_public_token_payload, item_payload
+from src.requests.plaid_payloads import exchange_public_token_payload, item_payload
 
 from unittest.mock import AsyncMock
 import pytest

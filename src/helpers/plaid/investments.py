@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.requests.payloads import item_payload
+from src.requests.plaid_payloads import item_payload
 
 class InvestmentsAPI:
     def __init__(self, plaid: "Plaid"): # type: ignore
