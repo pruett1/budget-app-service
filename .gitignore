@@ -4,6 +4,7 @@ src/helpers/encryption.py
 .pytest_cache/
 .coverage
 htmlcov/
+logs/
 
 # Python
 **/__pycache__/

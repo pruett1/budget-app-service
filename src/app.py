@@ -1,17 +1,22 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
-import logging
+
+from src.helpers.logger import config_logger, get_struct_logger
 
 from src.db.account_db import AccountDB
 from src.db.item_db import ItemDB
-from src.routers import account
 from src.helpers.sessions import SessionManager
 from src.helpers.plaid.client import Plaid
 
+from src.routers import account, linked_plaid
+
+from src.helpers.dependencies import require_user
+from src.helpers.request_context_middleware import RequestContextMiddleware
+
 @asynccontextmanager
 async def lifespan(app: FastAPI): #pragma: no cover
-    logger = logging.getLogger("uvicorn.error")
-    logger.setLevel(logging.DEBUG)
+    config_logger("uvicorn.error", file_name = "app.logs", backup = False)
+    logger = get_struct_logger("uvicorn.error")
 
     logger.info("Initializing application resources...")
     logger.info("Setting up SessionManager and AccountDB...")
@@ -29,8 +34,11 @@ async def lifespan(app: FastAPI): #pragma: no cover
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(RequestContextMiddleware)
+
 @app.get('/ping')
 async def ping():
-    return "pong"
+    return {"message": "pong"}
 
 app.include_router(account.router, prefix="/account")
+app.include_router(linked_plaid.router, prefix="/plaid", dependencies=[Depends(require_user)])

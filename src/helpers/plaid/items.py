@@ -1,5 +1,5 @@
 from __future__ import annotations
-from src.requests.payloads import exchange_public_token_payload, item_payload
+from src.requests.plaid_payloads import exchange_public_token_payload, item_payload
 
 class ItemsAPI:
     def __init__(self, plaid: Plaid): # type: ignore (added to stop pylance error for annotation)

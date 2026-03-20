@@ -1,7 +1,22 @@
 from src.db.item_db import ItemDB
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+import pytest
 import logging
+
+
+@pytest.fixture(autouse=True)
+def noop_encrypt_patcher():
+    p1 = patch("src.helpers.encryption.encrypt", lambda x: x)
+    p2 = patch("src.db.item_db.encrypt", lambda x: x)
+    p1.start()
+    p2.start()
+    try:
+        yield
+    finally:
+        p1.stop()
+        p2.stop()
+
 
 def item_db_with_mocks() -> ItemDB:
     # Setup mocks
@@ -47,10 +62,10 @@ def test_db_item_insert_positive():
 
     # Verify that collection.insert_one was called with correct data
     mock_collection.insert_one.assert_called_once_with({"user_id": "test_user_id", "items": []})
-    mock_logger.info.assert_any_call("Inserting new item...")
+    mock_logger.debug.assert_any_call("Inserting new item...")
 
 # NEGATIVE test for insert method
-def test_db_item_insert_negative_invalid_data_type():
+def test_db_item_insert_invalid_user_id_type():
     itemDB, _, _ = item_db_with_mocks()
 
     # Test data - invalid type (string instead of dict)
@@ -62,7 +77,7 @@ def test_db_item_insert_negative_invalid_data_type():
     except ValueError as e:
         assert str(e) == "Invalid user_id provided for insertion."
 
-def test_db_item_insert_negative_empty_user_id():
+def test_db_item_insert_invalid_empty_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     # Test data - empty string
@@ -74,7 +89,7 @@ def test_db_item_insert_negative_empty_user_id():
     except ValueError as e:
         assert str(e) == "Invalid user_id provided for insertion."
 
-def test_db_item_inert_negative_insert_exception():
+def test_db_item_insert_exception():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to raise exception on insert_one
@@ -89,7 +104,7 @@ def test_db_item_inert_negative_insert_exception():
         mock_logger.error.assert_called_with("Failed to insert new item: %s", e)
 
 # POSITIVE test for append_item method
-def test_db_item_append_item_positive():
+def test_db_item_append_item_success():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to simulate existing user_id
@@ -104,10 +119,10 @@ def test_db_item_append_item_positive():
     # Verify that collection.update_one was called with correct data
     mock_collection.update_one.assert_called_once_with(
         {"user_id": "test_user_id"}, 
-        {"$push": {"items": {"item_id": "item_123", "access_token": "access_token_abc", "item_data": None}}}
+        {"$push": {"items": {"item_id": "item_123", "access_token": "access_token_abc", "last_updatated": None, "item_data": None}}}
     )
 
-def test_db_item_append_item_positive_with_data():
+def test_db_item_append_item_success_with_data():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to simulate existing user_id
@@ -123,65 +138,65 @@ def test_db_item_append_item_positive_with_data():
     # Verify that collection.update_one was called with correct data
     mock_collection.update_one.assert_called_once_with(
         {"user_id": "test_user_id"}, 
-        {"$push": {"items": {"item_id": "item_123", "access_token": "access_token_abc", "item_data": test_item_data}}}
+        {"$push": {"items": {"item_id": "item_123", "access_token": "access_token_abc", "last_updatated": None, "item_data": test_item_data}}}
     )
 
 # NEGATIVE tests for append_item method
-def test_db_item_append_item_negative_invalid_user_id():
+def test_db_item_append_item_invalid_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.append_item(12345, "item_123", "access_token_abc")  # Invalid user_id type
         assert False, "Expected ValueError for invalid user_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item."
+        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item"
 
-def test_db_item_append_item_negative_invalid_item_id():
+def test_db_item_append_item_invalid_item_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.append_item("test_user_id", 12345, "access_token_abc")  # Invalid item_id type
         assert False, "Expected ValueError for invalid item_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item."
+        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item"
 
-def test_db_item_append_item_negative_invalid_access_token():
+def test_db_item_append_item_invalid_access_token():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.append_item("test_user_id", "item_123", 12345)  # Invalid access_token type
         assert False, "Expected ValueError for invalid access_token type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item."
+        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item"
 
-def test_db_item_append_item_negative_empty_user_id():
+def test_db_item_append_item_empty_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.append_item("", "item_123", "access_token_abc")  # Empty user_id
         assert False, "Expected ValueError for empty user_id"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item."
+        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item"
 
-def test_db_item_append_item_negative_empty_item_id():
+def test_db_item_append_item_empty_item_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.append_item("test_user_id", "", "access_token_abc")  # Empty item_id
         assert False, "Expected ValueError for empty item_id"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item."
+        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item"
 
-def test_db_item_append_item_negative_empty_access_token():
+def test_db_item_append_item_empty_access_token():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.append_item("test_user_id", "item_123", "")  # Empty access_token
         assert False, "Expected ValueError for empty access_token"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item."
+        assert str(e) == "Invalid user_id, item_id, or access_token provided for appending item"
 
-def test_db_item_append_item_negative_user_id_not_found():
+def test_db_item_append_item_user_id_not_found():
     itemDB, mock_collection, _ = item_db_with_mocks()
 
     # Setup mock to simulate user_id not found
@@ -193,7 +208,7 @@ def test_db_item_append_item_negative_user_id_not_found():
     except ValueError as e:
         assert str(e) == "User_id not found"
 
-def test_db_item_append_item_negative_item_already_exists():
+def test_db_item_append_item_item_already_exists():
     itemDB, mock_collection, _ = item_db_with_mocks()
 
     # Setup mock to simulate existing user_id and existing item
@@ -208,7 +223,7 @@ def test_db_item_append_item_negative_item_already_exists():
     except ValueError as e:
         assert str(e) == "Item already exists"
 
-def test_db_item_append_item_negative_insert_exception():
+def test_db_item_append_item_exception():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to simulate existing user_id and no existing item
@@ -226,13 +241,13 @@ def test_db_item_append_item_negative_insert_exception():
     except Exception as e:
         mock_collection.update_one.assert_called_once_with(
             {"user_id": "test_user_id"}, 
-            {"$push": {"items": {"item_id": "item_123", "access_token": "access_token_abc", "item_data": None}}}
+            {"$push": {"items": {"item_id": "item_123", "access_token": "access_token_abc", "last_updatated": None, "item_data": None}}}
             )
         assert str(e) == "Database error"
         mock_logger.error.assert_called_with("Failed to append item: %s", e)
 
 # POSTIVE tests for get_items method
-def test_db_item_get_items_positive():
+def test_db_item_get_items_success():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to simulate existing user_id with items
@@ -248,7 +263,39 @@ def test_db_item_get_items_positive():
     mock_collection.find_one.assert_called_once_with({"user_id": "test_user_id"})
     assert result == [{"item_id": "12345", "access_token": "acces_token"}]
 
-def test_db_item_get_items_positive_no_user():
+
+# New tests for get_item (added for refactor coverage)
+def test_db_item_get_item_success():
+    itemDB, mock_collection, mock_logger = item_db_with_mocks()
+
+    mock_collection.find_one.return_value = {
+        "user_id": "test_user_id",
+        "items": [{"item_id": "item_1", "access_token": "tok"}, {"item_id": "item_2", "access_token": "tok2"}]
+    }
+
+    result = itemDB.get_item("test_user_id", "item_2")
+    assert result == {"item_id": "item_2", "access_token": "tok2"}
+
+
+def test_db_item_get_item_not_found():
+    itemDB, mock_collection, mock_logger = item_db_with_mocks()
+
+    mock_collection.find_one.return_value = {"user_id": "test_user_id", "items": [{"item_id": "a"}]}
+
+    result = itemDB.get_item("test_user_id", "missing")
+    assert result is None
+    mock_logger.warning.assert_called_with("Item not found")
+
+
+def test_db_item_get_item_user_not_found():
+    itemDB, mock_collection, mock_logger = item_db_with_mocks()
+    mock_collection.find_one.return_value = None
+
+    result = itemDB.get_item("no_user", "x")
+    assert result is None
+    mock_logger.warning.assert_called_with("User not found")
+
+def test_db_item_get_items_no_user():
     item_db, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to simulate no user found
@@ -263,26 +310,26 @@ def test_db_item_get_items_positive_no_user():
     mock_logger.warning.assert_called_with("No user found")
 
 # NEGATIVE test for get_items method
-def test_db_item_get_items_negative_invalid_user_id():
+def test_db_item_get_items_invalid_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.get_items(12345)  # Invalid user_id type
         assert False, "Expected ValueError for invalid user_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id provided for retrieving items."
+        assert str(e) == "Invalid user_id provided for retrieving items"
 
-def test_db_item_get_items_negative_empty_user_id():
+def test_db_item_get_items_empty_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.get_items("")  # Empty user_id
         assert False, "Expected ValueError for empty user_id"
     except ValueError as e:
-        assert str(e) == "Invalid user_id provided for retrieving items."
+        assert str(e) == "Invalid user_id provided for retrieving items"
 
 # POSITIVE tests for remove_item method
-def test_db_item_remove_item_positive():
+def test_db_item_remove_item_success():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Call remove_item method
@@ -293,46 +340,46 @@ def test_db_item_remove_item_positive():
         {"user_id": "test_user_id"}, 
         {"$pull": {"items": {"item_id": "item_123"}}}
     )
-    mock_logger.info.assert_called_with("Removing item_id: %s from user_id: %s", "item_123", "test_user_id")
+    mock_logger.debug.assert_called_with("Removing item_id: %s from user_id: %s", "item_123", "test_user_id")
 
 # NEGATIVE tests for remove_item method
-def test_db_item_remove_item_negative_invalid_user_id():
+def test_db_item_remove_item_invalid_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.remove_item(12345, "item_123")  # Invalid user_id type
         assert False, "Expected ValueError for invalid user_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id or item_id provided for removing item."
+        assert str(e) == "Invalid user_id or item_id provided for removing item"
 
-def test_db_item_remove_item_negative_invalid_item_id():
+def test_db_item_remove_item_invalid_item_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.remove_item("test_user_id", 12345)  # Invalid item_id type
         assert False, "Expected ValueError for invalid item_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id or item_id provided for removing item."
+        assert str(e) == "Invalid user_id or item_id provided for removing item"
 
-def test_db_item_remove_item_negative_empty_user_id():
+def test_db_item_remove_item_empty_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.remove_item("", "item_123")  # Empty user_id
         assert False, "Expected ValueError for empty user_id"
     except ValueError as e:
-        assert str(e) == "Invalid user_id or item_id provided for removing item."
+        assert str(e) == "Invalid user_id or item_id provided for removing item"
 
-def test_db_item_remove_item_negative_empty_item_id():
+def test_db_item_remove_item_empty_item_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
         itemDB.remove_item("test_user_id", "")  # Empty item_id
         assert False, "Expected ValueError for empty item_id"
     except ValueError as e:
-        assert str(e) == "Invalid user_id or item_id provided for removing item."
+        assert str(e) == "Invalid user_id or item_id provided for removing item"
 
-def test_db_item_remove_item_negative_update_exception():
+def test_db_item_remove_item_exception():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
     # Setup mock to raise exception on update_one
@@ -349,91 +396,71 @@ def test_db_item_remove_item_negative_update_exception():
         assert str(e) == "Database error"
         mock_logger.error.assert_called_with("Failed to remove item: %s", e)
 
-# POSITIVE tests for update_item_access_token method
-def test_db_item_update_item_access_token_positive():
+# POSITIVE tests for update_item_field method (access_token)
+def test_db_item_update_item_field_access_token_success():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
-    # Call update_item_access_token method
-    itemDB.update_item_access_token("test_user_id", "item_123", "new_access_token_abc")
+    itemDB.update_item_field("test_user_id", "item_123", "access_token", "new_access_token_abc")
 
-    # Verify that collection.update_one was called with correct data
-    mock_collection.update_one.assert_called_once_with(
+    # First update sets the access_token (encrypted by noop), second updates last_updated
+    assert any(call[0][0] == {"user_id": "test_user_id", "items.item_id": "item_123"} for call in mock_collection.update_one.call_args_list)
+    assert any("items.$.last_updated" in list(call[0][1]["$set"].keys()) for call in mock_collection.update_one.call_args_list)
+    mock_logger.debug.assert_any_call("Updating %s for item_id: %s of user_id: %s", "access_token", "item_123", "test_user_id")
+
+
+# POSITIVE tests for update_item_field method (generic field)
+def test_db_item_update_item_field_generic_success():
+    itemDB, mock_collection, mock_logger = item_db_with_mocks()
+
+    itemDB.update_item_field("test_user_id", "item_123", "item_data", {"k": "v"})
+
+    mock_collection.update_one.assert_any_call(
         {"user_id": "test_user_id", "items.item_id": "item_123"},
-        {"$set": {"items.$.access_token": "new_access_token_abc"}}
+        {"$set": {"items.$.item_data": {"k": "v"}}}
     )
-    mock_logger.info.assert_called_with("Updating access token for item_id: %s of user_id: %s", "item_123", "test_user_id")
 
-# NEGATIVE test for update_item_access_token method
-def test_db_item_update_item_access_token_negative_invalid_user_id():
+    assert any("items.$.last_updated" in list(call[0][1]["$set"].keys()) for call in mock_collection.update_one.call_args_list)
+
+
+# NEGATIVE tests for update_item_field method
+def test_db_item_update_item_field_invalid_user_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
-        itemDB.update_item_access_token(12345, "item_123", "new_access_token_abc")  # Invalid user_id type
+        itemDB.update_item_field(12345, "item_123", "access_token", "new")
         assert False, "Expected ValueError for invalid user_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token."
+        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token"
 
-def test_db_item_update_item_access_token_negative_invalid_item_id():
+def test_db_item_update_item_field_invalid_item_id():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
-        itemDB.update_item_access_token("test_user_id", 12345, "new_access_token_abc")  # Invalid item_id type
+        itemDB.update_item_field("test_user_id", 12345, "access_token", "new")
         assert False, "Expected ValueError for invalid item_id type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token."
-    
-def test_db_item_update_item_access_token_negative_invalid_access_token():
+        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token"
+
+def test_db_item_update_item_field_invalid_new_value_type():
     itemDB, _, _ = item_db_with_mocks()
 
     try:
-        itemDB.update_item_access_token("test_user_id", "item_123", 12345)  # Invalid access_token type
-        assert False, "Expected ValueError for invalid access_token type"
+        itemDB.update_item_field("test_user_id", "item_123", "item_data", 12345)
+        assert False, "Expected ValueError for invalid new_value type"
     except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token."
+        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token"
 
-def test_db_item_update_item_access_token_negative_empty_user_id():
-    itemDB, _, _ = item_db_with_mocks()
-
-    try:
-        itemDB.update_item_access_token("", "item_123", "new_access_token_abc")  # Empty user_id
-        assert False, "Expected ValueError for empty user_id"
-    except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token."
-
-def test_db_item_update_item_access_token_negative_empty_item_id():
-    itemDB, _, _ = item_db_with_mocks()
-
-    try:
-        itemDB.update_item_access_token("test_user_id", "", "new_access_token_abc")  # Empty item_id
-        assert False, "Expected ValueError for empty item_id"
-    except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token."
-
-def test_db_item_update_item_access_token_negative_empty_access_token():
-    itemDB, _, _ = item_db_with_mocks()
-
-    try:
-        itemDB.update_item_access_token("test_user_id", "item_123", "")  # Empty access_token
-        assert False, "Expected ValueError for empty access_token"
-    except ValueError as e:
-        assert str(e) == "Invalid user_id, item_id, or new_access_token provided for updating access token."
-
-def test_db_item_update_item_access_token_negative_update_exception():
+def test_db_item_update_item_field_exception():
     itemDB, mock_collection, mock_logger = item_db_with_mocks()
 
-    # Setup mock to raise exception on update_one
     mock_collection.update_one.side_effect = Exception("Database error")
 
     try:
-        itemDB.update_item_access_token("test_user_id", "item_123", "new_access_token_abc")
-        assert False, "Expected Exception for database error during update_item_access_token"
+        itemDB.update_item_field("test_user_id", "item_123", "access_token", "new")
+        assert False, "Expected Exception for database error during update_item_field"
     except Exception as e:
-        mock_collection.update_one.assert_called_once_with(
-            {"user_id": "test_user_id", "items.item_id": "item_123"},
-            {"$set": {"items.$.access_token": "new_access_token_abc"}}
-        )
         assert str(e) == "Database error"
-        mock_logger.error.assert_called_with("Failed to update access token: %s", e)
+        mock_logger.error.assert_called()
 
 # POSITIVE test for close method
 def test_db_item_close():

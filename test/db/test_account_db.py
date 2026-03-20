@@ -36,7 +36,7 @@ def test_db_account_init():
     mock_db_instance.get_db.assert_called_once()
     assert account_db.collection == mock_collection
 
-    mock_logger.info.assert_called_with("AccountDB initialized.")
+    mock_logger.debug.assert_called_with("AccountDB initialized.")
 
 # POSITIVE test for insert method
 def test_db_account_insert_positive():
@@ -50,8 +50,8 @@ def test_db_account_insert_positive():
 
     # Verify that collection.insert_one was called with correct data
     mock_collection.insert_one.assert_called_once_with(test_account_data)
-    mock_logger.info.assert_any_call("Inserting new account...")
-    mock_logger.info.assert_any_call("Insertion complete.")
+    mock_logger.debug.assert_any_call("Inserting new account...")
+    mock_logger.debug.assert_any_call("Insertion complete.")
 
 # NEGATIVE test for insert method
 def test_db_account_insert_negative_invalid_data_type():

@@ -1,19 +1,18 @@
 from src.db.mongo import DB
-from logging import Logger
 
 class AccountDB:
-    def __init__(self, env: str, logger: Logger, db_factory = DB):
+    def __init__(self, env: str, logger, db_factory = DB):
         self.collection = db_factory(env).get_db().accounts
         self.logger = logger
-        self.logger.info("AccountDB initialized.")
+        self.logger.debug("AccountDB initialized.")
 
     def insert(self, account_data: dict):
         if account_data is None or not isinstance(account_data, dict):
             raise ValueError("Invalid account data provided for insertion.")
         
-        self.logger.info("Inserting new account...")
+        self.logger.debug("Inserting new account...")
         self.collection.insert_one(account_data)
-        self.logger.info("Insertion complete.")
+        self.logger.debug("Insertion complete.")
 
     def find_by_field(self, field: str, val: str):
         if not field or not val or not isinstance(field, str) or not isinstance(val, str):

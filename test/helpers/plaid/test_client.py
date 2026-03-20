@@ -3,7 +3,7 @@ from src.helpers.plaid.transactions import TransactionsAPI
 from src.helpers.plaid.items import ItemsAPI
 from src.helpers.plaid.liabilities import LiabilitiesAPI
 from src.helpers.plaid.investments import InvestmentsAPI
-from src.requests.payloads import create_link_token_payload
+from src.requests.plaid_payloads import create_link_token_payload
 import httpx
 
 from unittest.mock import MagicMock, patch, AsyncMock
@@ -74,9 +74,9 @@ async def test_plaid__post_positive():
 
     mock_response = MagicMock()
     mock_response.raise_for_status.return_value = None
-    mock_response.status_code = MagicMock(return_value=200)
-    mock_response.content = b'{}'
+    mock_response.status_code = 200
     mock_response.json.return_value = {"ok": True}
+    mock_response.text = 'response text'
 
     mock_client.post = AsyncMock(return_value=mock_response)
 
@@ -87,7 +87,7 @@ async def test_plaid__post_positive():
     mock_client.post.assert_awaited_once_with('/test/path', json={'a': 1})
     mock_response.raise_for_status.assert_called_once()
     mock_response.json.assert_called_once()
-    mock_logger.info.assert_called_once_with(f"Post: /test/path, Status: {mock_response.status_code()}")
+    mock_logger.debug.assert_called_once_with(f"Post to Plaid: /test/path", caller="plaid_client", status_code=200, body='response text')
     assert data == {"ok": True}
 
 

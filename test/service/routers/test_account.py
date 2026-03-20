@@ -2,200 +2,249 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, AsyncMock
 import pytest
 import re
+import uuid
 
 from src.app import app
-from test.mocks.dbs import MockAccountDB, MockItemDB
-from test.mocks.session_manager import MockSessionManager
 from src.helpers.dependencies import get_account_db, get_item_db, get_logger, get_plaid_client, get_session_manager
-from src.helpers.encryption import decrypt, pwd_hash
+from src.helpers.encryption import pwd_hash
 
-import logging
-
-client = TestClient(app)
-
-# Set up mock dependencies
-mock_account_db = MockAccountDB()
-mock_item_db = MockItemDB()
-mock_plaid = MagicMock()
-mock_session_manager = MockSessionManager()
-
-app.dependency_overrides[get_account_db] = lambda: mock_account_db
-app.dependency_overrides[get_item_db] = lambda: mock_item_db
-app.dependency_overrides[get_plaid_client] = lambda: mock_plaid
-app.dependency_overrides[get_session_manager] = lambda: mock_session_manager
-
-logger = logging.getLogger("test_logger")
-logger.setLevel(logging.INFO)
-app.dependency_overrides[get_logger] = lambda: logger
+UUID4_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
 
 @pytest.fixture(autouse=True)
-def clear_dbs():
-    # Clear mock databases before each test
-    mock_account_db.clear()
-    mock_item_db.clear()
-    yield
+def client_and_mocks():
+    client = TestClient(app)
 
-# Positive test for account creation
-@pytest.mark.usefixtures("caplog")
-def test_routes_account_create_positive(caplog):
-    # When create a new account with valid details
-    request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
-    response = client.post("/account/create", json=request)
-    new_account = mock_account_db.find_by_field("user", "testuser")
+    account_db = MagicMock()
+    item_db = MagicMock()
+    session_manager = MagicMock()
+    plaid = MagicMock()
+    logger = MagicMock()
 
-    # Then it should succeed, log appropriately, and store the account correctly
-    assert "Successfully created account for user: testuser" in caplog.text
-    assert response.status_code == 200
-    assert response.json() == "Account created successfully"
-    
-    assert new_account is not None
-    assert new_account['user'] == "testuser"
-    assert re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', new_account['user_id'])
-    assert new_account['email'] == "testuser@example.com"
-    assert new_account['password'] != "testpass" # password not stored in plaintext
-    assert new_account['password'] == pwd_hash("testpass")
+    # Ensure async method is awaitable
+    plaid.create_link_token = AsyncMock()
 
-    assert mock_item_db.items.get(new_account['user_id']) == []
+    app.dependency_overrides[get_account_db] = lambda: account_db
+    app.dependency_overrides[get_item_db] = lambda: item_db
+    app.dependency_overrides[get_plaid_client] = lambda: plaid
+    app.dependency_overrides[get_session_manager] = lambda: session_manager
+    app.dependency_overrides[get_logger] = lambda: logger
 
-# Negative tests for account creation
-@pytest.mark.usefixtures("caplog")
-def test_routes_account_create_negative_duplicate_username(caplog):
-    # Given an exisiting account
-    request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
-    response = client.post("/account/create", json=request)
-    assert response.status_code == 200
+    # ensure middleware and handlers that read app.state have expected values
+    app.state.logger = logger
+    app.state.sessionManager = session_manager
+    app.state.accountDB = account_db
+    app.state.itemDB = item_db
+    app.state.plaid = plaid
 
-    # When trying to create another account with the same username
-    response = client.post("/account/create", json=request)
-
-    # Then it should fail and log appropriately
-    assert "Username already exists: testuser" in caplog.text
-    assert response.status_code == 400
-    assert response.json() == "Username already exists"
-
-@pytest.mark.usefixtures("caplog")
-def test_routes_account_create_negative_invalid_email(caplog):
-    # When creating an account with an invalid email format
-    request = {"username": "testuser", "password": "testpass", "email": "invalidemail"}
-    response = client.post("/account/create", json=request)
-
-    # Then it should fail, log appropriately, and not store the account
-    assert "Invalid email format: invalidemail" in caplog.text
-    assert response.status_code == 400
-    assert response.json() == "Invalid email format"
-    assert mock_account_db.find_by_field("user", "testuser") is None
-
-@pytest.mark.usefixtures("caplog")
-def test_routes_account_create_negative_duplicate_email(caplog):
-    # Given an existing account
-    request_1 = {"username": "user1", "password": "pass1", "email": "testuser@example.com"}
-    response_1 = client.post("/account/create", json=request_1)
-    assert response_1.status_code == 200
-
-    # When trying to create another account with the same email
-    request_2 = {"username": "user2", "password": "pass2", "email": "testuser@example.com"}
-    response_2 = client.post("/account/create", json=request_2)
-
-    # Then it should fail, log appropriately, and not store the second account
-    assert "Email already exists: testuser@example.com" in caplog.text
-    assert response_2.status_code == 400
-    assert response_2.json() == "Email already exists"
-    assert mock_account_db.find_by_field("user", "user2") is None
-
-# Positive test for login
-def test_routes_account_login_positive():
-    mock_plaid.create_link_token = AsyncMock()
-    mock_plaid.create_link_token.return_value = "mock_link_token"
-
-    # Given an existing account
-    create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
-    create_response = client.post("/account/create", json=create_request)
-    assert create_response.status_code == 200
-    user_id = mock_account_db.find_by_field("user", "testuser")['user_id']
-
-    # When logging in with correct credentials
-    login_request = {"username": "testuser", "password": "testpass"}
-    login_response = client.post("/account/login", json=login_request)
-
-    # Then it should succeed and return tokens
-    mock_plaid.create_link_token.assert_awaited_once_with(user_id)
-    assert login_response.status_code == 200
-    assert login_response.json() == {
-        "jwt_token": f"{user_id}:mock_session_token",
-        "link_token": "mock_link_token"
+    yield {
+        "client": client,
+        "account_db": account_db,
+        "item_db": item_db,
+        "session_manager": session_manager,
+        "plaid": plaid,
+        "logger": logger,
     }
 
-# Negative test for login
-def test_routes_account_login_negative_invalid_username():
-    # Given an existing account
-    create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
-    create_response = client.post("/account/create", json=create_request)
-    assert create_response.status_code == 200
+    app.dependency_overrides.clear()
 
-    # When logging in with an invalid username
-    login_request = {"username": "wronguser", "password": "testpass"}
-    login_response = client.post("/account/login", json=login_request)
+def _headers():
+    return {"request-id": str(uuid.uuid4())}
 
-    # Then it should return unauthorized
-    assert login_response.status_code == 401
-    assert login_response.json() == "Invalid credentials"
+def test_router_account_create_success(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+    item_db = c["item_db"]
+    logger = c["logger"]
 
-def test_routes_account_login_negative_invalid_password():
-    # Given an existing account
-    create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
-    create_response = client.post("/account/create", json=create_request)
-    assert create_response.status_code == 200
+    # No existing user/email
+    account_db.find_by_field.return_value = None
 
-    # When logging in with an invalid password
-    login_request = {"username": "testuser", "password": "wrongpass"}
-    login_response = client.post("/account/login", json=login_request)
+    payload = {"username": "u1", "password": "p1", "email": "u1@example.com"}
+    resp = client.post("/account/create", json=payload, headers=_headers())
 
-    # Then it should return unauthorized
-    assert login_response.status_code == 401
-    assert login_response.json() == "Invalid credentials"
+    assert resp.status_code == 200
+    assert resp.json() == {"message": "Account created successfully"}
 
-# Positive test for exchange_public_token
-def test_routes_account_exchange_public_token_positive():
-    mock_plaid.items.exchange_public_token = AsyncMock()
-    mock_plaid.items.exchange_public_token.return_value = ("mock_access_token", "mock_item_id")
-    mock_plaid.items.get = AsyncMock()
-    mock_plaid.items.get.return_value = {"item": {"products": ["prod1"], "consented_products": ["prod1"]}}
+    # Verify insert called with hashed password and uuid
+    account_db.insert.assert_called_once()
+    inserted = account_db.insert.call_args[0][0]
+    assert inserted["user"] == "u1"
+    assert inserted["email"] == "u1@example.com"
+    assert inserted["password"] == pwd_hash("p1")
+    assert UUID4_RE.match(inserted["user_id"]) is not None
 
-    # Given an existing account and valid JWT token
-    create_request = {"username": "testuser", "password": "testpass", "email": "testuser@example.com"}
-    create_response = client.post("/account/create", json=create_request)
-    assert create_response.status_code == 200
-    
-    login_response = client.post("/account/login", json={"username": "testuser", "password": "testpass"})
-    assert login_response.status_code == 200
-    jwt_token = login_response.json()['jwt_token']
+    # item_db.insert called with the user_id
+    item_db.insert.assert_called_once_with(inserted["user_id"])
 
-    # When exchanging a public token
-    exchange_request = {"jwt_token": jwt_token, "public_token": "mock_public_token"}
-    exchange_response = client.post("/account/exchange_public_token", json=exchange_request)
+    # logger got initial and success debug calls
+    logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
+    logger.debug.assert_any_call("Successfully created account for user", user="u1")
 
-    # Then it should succeed, not return anything, and store the access token and item ID
-    assert exchange_response.status_code == 204
-    assert exchange_response.content == b""
-    
-    user_id = mock_session_manager.validate(jwt_token)
-    user_items = mock_item_db.items.get(user_id)
-    assert len(user_items) == 1
-    assert user_items[0]['item_id'] != "mock_item_id" # should be stored encrypted
-    assert user_items[0]['access_token'] != "mock_access_token" # should be stored encrypted
-    assert decrypt(user_items[0]['item_id']) == "mock_item_id"
-    assert decrypt(user_items[0]['access_token']) == "mock_access_token"
+def test_router_account_create_duplicate_username(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+    logger = c["logger"]
 
-    mock_plaid.items.exchange_public_token.assert_awaited_once_with("mock_public_token")
-    mock_plaid.items.get.assert_awaited_once_with("mock_access_token")
+    # Simulate username exists
+    account_db.find_by_field.side_effect = lambda field, val: {"user": val} if field == "user" else None
 
-# Negative test for exchange_public_token
-def test_routes_account_exchange_public_token_negative_invalid_jwt():
-    # When exchanging a public token with an invalid JWT token
-    exchange_request = {"jwt_token": "user_id:invalid_jwt_token", "public_token": "mock_public_token"}
-    exchange_response = client.post("/account/exchange_public_token", json=exchange_request)
+    payload = {"username": "u2", "password": "p2", "email": "u2@example.com"}
+    resp = client.post("/account/create", json=payload, headers=_headers())
 
-    # Then it should return unauthorized and not store anything
-    assert exchange_response.status_code == 401
-    assert exchange_response.json() == "Invalid or expired session token"
-    assert mock_item_db.items == {}
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Username already exists"}
+    account_db.insert.assert_not_called()
+    logger.warning.assert_called_once_with("Username already exists", user="u2")
+    logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
+
+def test_router_account_create_invalid_email(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+    logger = c["logger"]
+
+    account_db.find_by_field.return_value = None
+
+    payload = {"username": "u3", "password": "p3", "email": "invalid-email"}
+    resp = client.post("/account/create", json=payload, headers=_headers())
+
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Invalid email format"}
+    account_db.insert.assert_not_called()
+    logger.warning.assert_called_once_with("Invalid email format", email="invalid-email")
+    logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
+
+
+def test_router_account_create_duplicate_email(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+    logger = c["logger"]
+
+    def find_by_field(field, val):
+        if field == "user":
+            return None
+        if field == "email":
+            return {"email": val}
+        return None
+
+    account_db.find_by_field.side_effect = find_by_field
+
+    payload = {"username": "u4", "password": "p4", "email": "dup@example.com"}
+    resp = client.post("/account/create", json=payload, headers=_headers())
+
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Email already exists"}
+    account_db.insert.assert_not_called()
+    logger.warning.assert_called_once_with("Email already exists", email="dup@example.com")
+    logger.debug.assert_any_call("Account Create Attempt", path='/create', route='/account')
+
+def test_router_account_login_success(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+    session_manager = c["session_manager"]
+    plaid = c["plaid"]
+
+    user_id = str(uuid.uuid4())
+    account_db.validate_credentials.return_value = {"user_id": user_id, "user": "lu"}
+    session_manager.create.return_value = "sess-token"
+    plaid.create_link_token.return_value = "link-token"
+
+    payload = {"username": "lu", "password": "pw"}
+    resp = client.post("/account/login", json=payload, headers=_headers())
+
+    assert resp.status_code == 200
+    assert resp.json() == {"jwt_token": "sess-token", "link_token": "link-token"}
+
+    plaid.create_link_token.assert_awaited_once_with(user_id)
+    session_manager.create.assert_called_once_with(user_id)
+    # initial login debug
+    c["logger"].debug.assert_any_call("Login Attempt", user="lu", path='/login', route='/account')
+
+def test_router_account_login_invalid_credentials(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+
+    account_db.validate_credentials.return_value = None
+
+    payload = {"username": "no", "password": "no"}
+    resp = client.post("/account/login", json=payload, headers=_headers())
+
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Invalid credentials"}
+    c["logger"].debug.assert_any_call("Login Attempt", user="no", path='/login', route='/account')
+
+def test_router_account_login_plaid_error_returns_500(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    account_db = c["account_db"]
+    plaid = c["plaid"]
+    logger = c["logger"]
+
+    user_id = str(uuid.uuid4())
+    account_db.validate_credentials.return_value = {"user_id": user_id, "user": "lu"}
+    plaid.create_link_token.side_effect = Exception("boom")
+
+    payload = {"username": "lu", "password": "pw"}
+    resp = client.post("/account/login", json=payload, headers=_headers())
+
+    assert resp.status_code == 500
+    assert resp.json() == {"error": "Failed to create link token"}
+    logger.error.assert_called_once_with("Exception while creating link token", exception="boom")
+    logger.debug.assert_any_call("Login Attempt", user="lu", path='/login', route='/account')
+
+def test_router_account_logout_valid_session(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    session_manager = c["session_manager"]
+    logger = c["logger"]
+
+    token = "tok-123"
+    headers = _headers()
+    headers["Authorization"] = f"Bearer {token}"
+
+    resp = client.get("/account/logout", headers=headers)
+    assert resp.status_code == 204
+    session_manager.invalidate.assert_called_once_with(token)
+    logger.debug.assert_any_call("Logging Out", path='/logout', route='/account')
+
+
+def test_router_account_logout_missing_authorization_header(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    logger = c["logger"]
+
+    resp = client.get("/account/logout", headers=_headers())
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Missing Authorization header"}
+    logger.warning.assert_called_once_with("Logout attempted without Authorization header", path='/logout', route='/account')
+
+
+def test_router_account_logout_malformed_authorization_header(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    logger = c["logger"]
+
+    headers = _headers()
+    headers["Authorization"] = "MalformedHeader"
+    resp = client.get("/account/logout", headers=headers)
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "Invalid or expired token"}
+    logger.debug.assert_any_call("Failed to validate token", path='/account/logout', method='GET')
+
+
+def test_router_account_logout_invalid_scheme(client_and_mocks):
+    c = client_and_mocks
+    client = c["client"]
+    logger = c["logger"]
+
+    headers = _headers()
+    headers["Authorization"] = "Token abc123"
+    resp = client.get("/account/logout", headers=headers)
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Invalid Authorization header scheme (must be Bearer)"}
+    logger.debug.assert_any_call("Authorization header has invalid scheme", path='/account/logout', method='GET')
